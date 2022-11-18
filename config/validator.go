@@ -18,14 +18,23 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/go-playground/validator/v10"
 	"go.uber.org/multierr"
 )
 
-// keyStructTag is a tag which contains a field's key.
-const keyStructTag = "key"
+const (
+	// keyStructTag is a tag which contains a field's key.
+	keyStructTag = "key"
+	// openSquareBracket is a substring, by which
+	// the element number of the slice is separated from the field name.
+	openSquareBracket = "["
+	// excludeSpace is a substring that should not be included
+	// in table and column names.
+	excludeSpace = " "
+)
 
 var (
 	// validate is a singleton instance of the validator.
@@ -51,11 +60,15 @@ func validateStruct(data any) error {
 		}
 
 		for _, fieldErr := range validationErrs {
-			fieldName := getFieldKey(data, fieldErr.StructField())
+			fieldName := fieldKey(data, fieldErr.StructField())
 
 			switch fieldErr.ActualTag() {
 			case "required":
 				err = multierr.Append(err, requiredErr(fieldName))
+			case "lowercase":
+				err = multierr.Append(err, lowercaseErr(fieldName))
+			case "excludesall":
+				err = multierr.Append(err, excludesallErr(fieldName, fieldErr.Param()))
 			case "gte":
 				err = multierr.Append(err, gteErr(fieldName, fieldErr.Param()))
 			case "lte":
@@ -72,6 +85,21 @@ func requiredErr(name string) error {
 	return fmt.Errorf("%q value must be set", name)
 }
 
+// lowercaseErr returns the formatted lowercase error.
+func lowercaseErr(name string) error {
+	return fmt.Errorf("%q value must be in lowercase", name)
+}
+
+// excludesallErr returns the formatted excludesall error.
+func excludesallErr(name, param string) error {
+	switch param {
+	case excludeSpace:
+		return fmt.Errorf("%q value must not contain spaces", name)
+	default:
+		return fmt.Errorf("%q is unprocessed parameter format", param)
+	}
+}
+
 // gteErr returns the formatted gte error.
 func gteErr(name, gte string) error {
 	return fmt.Errorf("%q value must be greater than or equal to %s", name, gte)
@@ -82,9 +110,9 @@ func lteErr(name, lte string) error {
 	return fmt.Errorf("%q value must be less than or equal to %s", name, lte)
 }
 
-// getFieldKey returns a key ("key" tag) for the provided fieldName.
+// fieldKey returns a key ("key" tag) for the provided fieldName.
 // If the "key" tag is not present, the function will return a fieldName.
-func getFieldKey(data any, fieldName string) string {
+func fieldKey(data any, fieldName string) string {
 	// if the data is not pointer or is nil, return a fieldName.
 	val := reflect.ValueOf(data)
 	if val.Kind() == reflect.Ptr && !val.IsNil() {
@@ -93,6 +121,13 @@ func getFieldKey(data any, fieldName string) string {
 
 	if val.Kind() != reflect.Struct {
 		return fieldName
+	}
+
+	// if the field name contains a slice element,
+	// separate the information about the array element,
+	// and leave the field name unchanged
+	if strings.Contains(fieldName, openSquareBracket) {
+		fieldName = strings.Split(fieldName, openSquareBracket)[0]
 	}
 
 	structField, ok := val.Type().FieldByName(fieldName)
