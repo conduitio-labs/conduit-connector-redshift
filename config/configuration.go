@@ -22,29 +22,43 @@ import (
 const (
 	// DSN is the configuration name of the data source name to connect to the Amazon Redshift.
 	DSN = "dsn"
-	// Table is the configuration name of the table.
+	// Table is the configuration name of the table name.
 	Table = "table"
+	// KeyColumns is the configuration name of comma-separated column names to build the sdk.Record.Key.
+	KeyColumns = "keyColumns"
 )
 
-// Configuration is the general configurations needed to connect to Amazon Redshift database.
+// Configuration contains common for source and destination configurable values.
 type Configuration struct {
 	// DSN is the configuration of the data source name to connect to the Amazon Redshift.
 	DSN string `key:"dsn" validate:"required"`
 	// Table is the configuration of the table name.
-	Table string `key:"table" validate:"required"`
+	Table string `key:"table" validate:"required,lowercase,excludesall= ,lte=127"`
+	// KeyColumns is the configuration of comma-separated column names to build the sdk.Record.Key (for Source).
+	KeyColumns []string `key:"keyColumns" validate:"omitempty,dive,lowercase,excludesall= ,lte=127"`
 }
 
-// parseConfiguration parses a general configuration.
-func parseConfiguration(cfg map[string]string) (Configuration, error) {
-	config := Configuration{
-		DSN:   strings.TrimSpace(cfg[DSN]),
-		Table: strings.TrimSpace(cfg[Table]),
+// parseCommon parses a common configuration.
+func parseCommon(cfg map[string]string) (Configuration, error) {
+	commonConfig := Configuration{
+		DSN:   cfg[DSN],
+		Table: cfg[Table],
 	}
 
-	err := validateStruct(config)
-	if err != nil {
-		return Configuration{}, fmt.Errorf("validate general configuration: %w", err)
+	if cfg[KeyColumns] != "" {
+		keyColumns := strings.Split(cfg[KeyColumns], ",")
+		for i := range keyColumns {
+			if keyColumns[i] == "" {
+				return Configuration{}, fmt.Errorf("invalid %q", KeyColumns)
+			}
+
+			commonConfig.KeyColumns = append(commonConfig.KeyColumns, strings.TrimSpace(keyColumns[i]))
+		}
 	}
 
-	return config, nil
+	if err := validateStruct(commonConfig); err != nil {
+		return Configuration{}, fmt.Errorf("validate common configuration: %w", err)
+	}
+
+	return commonConfig, nil
 }
