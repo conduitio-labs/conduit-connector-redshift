@@ -23,11 +23,11 @@ import (
 )
 
 const (
-	testDSN   = "postgres://username:password@endpoint:5439/database"
-	testTable = "test_table"
+	testValueDSN   = "postgres://username:password@endpoint:5439/database"
+	testValueTable = "test_table"
 )
 
-func TestParseGeneral(t *testing.T) {
+func TestParseCommon(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -37,35 +37,187 @@ func TestParseGeneral(t *testing.T) {
 		err  error
 	}{
 		{
-			name: "success_required_values",
+			name: "success_required_values_only",
 			in: map[string]string{
-				DSN:   testDSN,
-				Table: testTable,
+				DSN:   testValueDSN,
+				Table: testValueTable,
 			},
 			want: Configuration{
-				DSN:   testDSN,
-				Table: testTable,
+				DSN:   testValueDSN,
+				Table: testValueTable,
 			},
 		},
 		{
-			name: "failure_required_url",
+			name: "success_keyColumns_has_one_key",
 			in: map[string]string{
-				Table: testTable,
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: "id",
 			},
-			err: fmt.Errorf("validate general configuration: %w", requiredErr("dsn")),
+			want: Configuration{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: []string{"id"},
+			},
 		},
 		{
-			name: "failure_required_table",
+			name: "success_keyColumns_has_two_keys",
 			in: map[string]string{
-				DSN: testDSN,
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: "id,name",
 			},
-			err: fmt.Errorf("validate general configuration: %w", requiredErr("table")),
+			want: Configuration{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: []string{"id", "name"},
+			},
 		},
 		{
-			name: "failure_required_url_and_table",
+			name: "success_keyColumns_has_space_between_keys",
+			in: map[string]string{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: "id, name",
+			},
+			want: Configuration{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: []string{"id", "name"},
+			},
+		},
+		{
+			name: "success_keyColumns_ends_with_space",
+			in: map[string]string{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: "id,name ",
+			},
+			want: Configuration{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: []string{"id", "name"},
+			},
+		},
+		{
+			name: "success_keyColumns_starts_with_space",
+			in: map[string]string{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: " id,name",
+			},
+			want: Configuration{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: []string{"id", "name"},
+			},
+		},
+		{
+			name: "success_keyColumns_has_space_between_keys_before_comma",
+			in: map[string]string{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: "id ,name",
+			},
+			want: Configuration{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: []string{"id", "name"},
+			},
+		},
+		{
+			name: "success_keyColumns_has_two_spaces",
+			in: map[string]string{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: "id,  name",
+			},
+			want: Configuration{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: []string{"id", "name"},
+			},
+		},
+		{
+			name: "failure_keyColumns_ends_with_comma",
+			in: map[string]string{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: "id,name,",
+			},
+			err: fmt.Errorf("invalid %q", KeyColumns),
+		},
+		{
+			name: "failure_keyColumns_starts_with_comma",
+			in: map[string]string{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: ",id,name",
+			},
+			err: fmt.Errorf("invalid %q", KeyColumns),
+		},
+		{
+			name: "failure_keyColumns_invalid",
+			in: map[string]string{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: ",",
+			},
+			err: fmt.Errorf("invalid %q", KeyColumns),
+		},
+		{
+			name: "failure_table_has_space",
+			in: map[string]string{
+				DSN:   testValueDSN,
+				Table: "test table",
+			},
+			err: fmt.Errorf("validate common configuration: %w", excludesallErr(Table, excludeSpace)),
+		},
+		{
+			name: "failure_table_has_uppercase_letter",
+			in: map[string]string{
+				DSN:   testValueDSN,
+				Table: "Test_table",
+			},
+			err: fmt.Errorf("validate common configuration: %w", lowercaseErr(Table)),
+		},
+		{
+			name: "failure_keyColumns_has_uppercase_letter",
+			in: map[string]string{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: "ID",
+			},
+			err: fmt.Errorf("validate common configuration: %w", lowercaseErr(KeyColumns)),
+		},
+		{
+			name: "failure_keyColumn_has_space",
+			in: map[string]string{
+				DSN:        testValueDSN,
+				Table:      testValueTable,
+				KeyColumns: "na me",
+			},
+			err: fmt.Errorf("validate common configuration: %w", excludesallErr(KeyColumns, excludeSpace)),
+		},
+		{
+			name: "failure_url_is_required",
+			in: map[string]string{
+				Table: testValueTable,
+			},
+			err: fmt.Errorf("validate common configuration: %w", requiredErr(DSN)),
+		},
+		{
+			name: "failure_table_is_required",
+			in: map[string]string{
+				DSN: testValueDSN,
+			},
+			err: fmt.Errorf("validate common configuration: %w", requiredErr(Table)),
+		},
+		{
+			name: "failure_url_and_table_are_required",
 			in:   map[string]string{},
-			err: fmt.Errorf("validate general configuration: %w",
-				multierr.Combine(requiredErr("dsn"), requiredErr("table"))),
+			err: fmt.Errorf("validate common configuration: %w",
+				multierr.Combine(requiredErr(DSN), requiredErr(Table))),
 		},
 	}
 
@@ -75,7 +227,7 @@ func TestParseGeneral(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := parseConfiguration(tt.in)
+			got, err := parseCommon(tt.in)
 			if err != nil {
 				if tt.err == nil {
 					t.Errorf("unexpected error: %s", err.Error())
