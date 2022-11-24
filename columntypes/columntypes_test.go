@@ -12,16 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package redshift
+package columntypes
 
-import (
-	"github.com/conduitio-labs/conduit-connector-redshift/source"
-	sdk "github.com/conduitio/conduit-connector-sdk"
-)
-
-// Connector is a sdk.Connector of Amazon Redshift.
-var Connector = sdk.Connector{
-	NewSpecification: Specification,
-	NewSource:        source.NewSource,
-	NewDestination:   nil,
-}
+// todo: test for TransformRow function
