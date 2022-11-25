@@ -1,6 +1,6 @@
 module github.com/conduitio-labs/conduit-connector-redshift
 
-go 1.18
+go 1.19
 
 require github.com/conduitio/conduit-connector-sdk v0.3.0
 

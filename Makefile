@@ -1,12 +1,10 @@
 .PHONY: build test
 
-VERSION=$(shell git describe --tags --dirty --always)
-
 build:
-	go build -ldflags "-X 'github.com/conduitio-labs/conduit-connector-redshift.version=${VERSION}'" -o conduit-connector-redshift cmd/connector/main.go
+	go build -o conduit-connector-redshift cmd/connector/main.go
 
 test:
-	go test $(GOTEST_FLAGS) -count=1 -race ./...
+	go test $(GOTEST_FLAGS) -v -count=1 -race ./...
 
 lint:
 	golangci-lint run --config .golangci.yml
