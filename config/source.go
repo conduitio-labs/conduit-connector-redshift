@@ -20,12 +20,17 @@ import (
 )
 
 const (
-	// OrderingColumn is a config name for an ordering column.
+	// OrderingColumn is a config name for the orderingColumn field.
 	OrderingColumn = "orderingColumn"
+	// CopyExistingData is a config name for the copyExistingData field.
+	CopyExistingData = "copyExistingData"
 	// BatchSize is the config name for a batch size.
 	BatchSize = "batchSize"
 
+	// defaultBatchSize is a default value for the batchSize field.
 	defaultBatchSize = 1000
+	// defaultCopyExistingData is a default value for the copyExistingData field.
+	defaultCopyExistingData = true
 )
 
 // Source contains source-specific configurable values.
@@ -34,6 +39,10 @@ type Source struct {
 
 	// OrderingColumn is a name of a column that the connector will use for ordering rows.
 	OrderingColumn string `key:"orderingColumn" validate:"required,lowercase,excludesall= ,lte=127"`
+
+	// CopyExistingData determines whether the connector will move already existing data
+	// or only those that will be available after it starts.
+	CopyExistingData bool `key:"copyExistingData"`
 	// BatchSize is a size of rows batch.
 	BatchSize int `key:"batchSize" validate:"gte=1,lte=100000"`
 }
@@ -46,15 +55,23 @@ func ParseSource(cfg map[string]string) (Source, error) {
 	}
 
 	sourceConfig := Source{
-		Configuration:  commonConfig,
-		OrderingColumn: cfg[OrderingColumn],
-		BatchSize:      defaultBatchSize,
+		Configuration:    commonConfig,
+		OrderingColumn:   cfg[OrderingColumn],
+		CopyExistingData: defaultCopyExistingData,
+		BatchSize:        defaultBatchSize,
 	}
 
 	if cfg[BatchSize] != "" {
 		sourceConfig.BatchSize, err = strconv.Atoi(cfg[BatchSize])
 		if err != nil {
 			return Source{}, fmt.Errorf("parse %q: %w", BatchSize, err)
+		}
+	}
+
+	if cfg[CopyExistingData] != "" {
+		sourceConfig.CopyExistingData, err = strconv.ParseBool(cfg[CopyExistingData])
+		if err != nil {
+			return Source{}, fmt.Errorf("parse %q: %w", CopyExistingData, err)
 		}
 	}
 

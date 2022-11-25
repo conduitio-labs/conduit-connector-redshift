@@ -43,6 +43,7 @@ linters:
     - gocritic
     - gocyclo
     - godot
+    - godox
     - gofmt
     - gofumpt
     - goheader
@@ -96,7 +97,6 @@ linters:
     # - dupl
     # - gochecknoglobals
     # - gocognit
-    # - godox
     # - goerr113
     # - maligned
     # - nestif

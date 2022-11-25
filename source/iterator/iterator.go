@@ -30,7 +30,7 @@ const (
 	metadataTable = "redshift.table"
 
 	querySelectRowsFmt = "SELECT * FROM %s%s ORDER BY %s ASC LIMIT %d;"
-	whereClauseFmt     = " WHERE %s > ?"
+	whereClauseFmt     = " WHERE %s > $1"
 
 	querySelectPKs = `
 	SELECT

@@ -14,4 +14,4 @@
 
 package columntypes
 
-// todo: test for TransformRow function
+// todo: add tests for the TransformRow function

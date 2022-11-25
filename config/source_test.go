@@ -41,8 +41,9 @@ func TestParseSource(t *testing.T) {
 					DSN:   testValueDSN,
 					Table: testValueTable,
 				},
-				OrderingColumn: "id",
-				BatchSize:      defaultBatchSize,
+				OrderingColumn:   "id",
+				CopyExistingData: true,
+				BatchSize:        defaultBatchSize,
 			},
 		},
 		{
@@ -58,8 +59,28 @@ func TestParseSource(t *testing.T) {
 					DSN:   testValueDSN,
 					Table: testValueTable,
 				},
-				OrderingColumn: "id",
-				BatchSize:      100,
+				OrderingColumn:   "id",
+				CopyExistingData: true,
+				BatchSize:        100,
+			},
+		},
+		{
+			name: "success_copyExistingData",
+			in: map[string]string{
+				DSN:              testValueDSN,
+				Table:            testValueTable,
+				OrderingColumn:   "id",
+				CopyExistingData: "false",
+				BatchSize:        "100",
+			},
+			want: Source{
+				Configuration: Configuration{
+					DSN:   testValueDSN,
+					Table: testValueTable,
+				},
+				OrderingColumn:   "id",
+				CopyExistingData: false,
+				BatchSize:        100,
 			},
 		},
 		{
@@ -75,8 +96,9 @@ func TestParseSource(t *testing.T) {
 					DSN:   testValueDSN,
 					Table: testValueTable,
 				},
-				OrderingColumn: "id",
-				BatchSize:      100000,
+				OrderingColumn:   "id",
+				CopyExistingData: true,
+				BatchSize:        100000,
 			},
 		},
 		{
@@ -92,8 +114,9 @@ func TestParseSource(t *testing.T) {
 					DSN:   testValueDSN,
 					Table: testValueTable,
 				},
-				OrderingColumn: "id",
-				BatchSize:      1,
+				OrderingColumn:   "id",
+				CopyExistingData: true,
+				BatchSize:        1,
 			},
 		},
 		{
@@ -161,6 +184,16 @@ func TestParseSource(t *testing.T) {
 				BatchSize:      "-1",
 			},
 			err: gteErr(BatchSize, "1"),
+		},
+		{
+			name: "failure_copyExistingData_is_invalid",
+			in: map[string]string{
+				DSN:              testValueDSN,
+				Table:            testValueTable,
+				OrderingColumn:   "id",
+				CopyExistingData: "a",
+			},
+			err: fmt.Errorf(`parse %q: strconv.ParseBool: parsing "a": invalid syntax`, CopyExistingData),
 		},
 	}
 
