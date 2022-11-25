@@ -213,9 +213,7 @@ func TestSource_Read_keyColumnsFromOrderingColumn(t *testing.T) {
 	err = db.Ping()
 	is.NoErr(err)
 
-	_, err = db.Exec(fmt.Sprintf(
-		"CREATE TABLE %s (col1 INTEGER, col2 INTEGER);",
-		cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
 	is.NoErr(err)
 
 	defer func() {
@@ -253,7 +251,7 @@ func TestSource_Read_keyColumnsFromOrderingColumn(t *testing.T) {
 func TestSource_Read_checkTypes(t *testing.T) {
 	const (
 		timeTypeLayout   = "15:04:05"
-		timeTZTypeLayout = "15:04:05Z07:00"
+		timeTzTypeLayout = "15:04:05Z07:00"
 	)
 
 	type dataRow struct {
@@ -356,7 +354,7 @@ func TestSource_Read_checkTypes(t *testing.T) {
 		want.TimestampType,
 		want.TimestampTzType,
 		want.TimeType.Format(timeTypeLayout),
-		want.TimeTzType.Format(timeTZTypeLayout),
+		want.TimeTzType.Format(timeTzTypeLayout),
 		want.VarbyteType)
 	is.NoErr(err)
 
@@ -393,8 +391,69 @@ func TestSource_Read_checkTypes(t *testing.T) {
 	is.Equal(got.TimestampType, want.TimestampType)
 	is.Equal(got.TimestampTzType.UTC(), want.TimestampTzType.UTC())
 	is.Equal(got.TimeType.Format(timeTypeLayout), want.TimeType.Format(timeTypeLayout))
-	is.Equal(got.TimeTzType.UTC().Format(timeTZTypeLayout), want.TimeTzType.UTC().Format(timeTZTypeLayout))
+	is.Equal(got.TimeTzType.UTC().Format(timeTzTypeLayout), want.TimeTzType.UTC().Format(timeTzTypeLayout))
 	is.Equal(got.VarbyteType, string(varbyteTypeHex))
+
+	cancel()
+
+	err = src.Teardown(context.Background())
+	is.NoErr(err)
+}
+
+func TestSource_Read_copyExistingData(t *testing.T) {
+	var (
+		is  = is.New(t)
+		cfg = prepareConfig(t, "col1")
+	)
+
+	// set copyExistingData value to false
+	cfg[config.CopyExistingData] = "false"
+
+	db, err := sqlx.Open(driverName, cfg[config.DSN])
+	is.NoErr(err)
+	defer db.Close()
+
+	err = db.Ping()
+	is.NoErr(err)
+
+	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
+	is.NoErr(err)
+
+	defer func() {
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.Table]))
+		is.NoErr(err)
+	}()
+
+	// insert a row to be sure that this data will not be transferred to the destination
+	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.Table]))
+	is.NoErr(err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	src := NewSource()
+
+	err = src.Configure(ctx, cfg)
+	is.NoErr(err)
+
+	err = src.Open(ctx, nil)
+	is.NoErr(err)
+
+	_, err = src.Read(ctx)
+	is.Equal(err, sdk.ErrBackoffRetry)
+
+	// insert an additional row
+	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (3, 4);", cfg[config.Table]))
+	is.NoErr(err)
+
+	record, err := src.Read(ctx)
+	is.NoErr(err)
+	is.Equal(record.Key, sdk.StructuredData(map[string]any{
+		"col1": int64(3),
+	}))
+
+	_, err = src.Read(ctx)
+	is.Equal(err, sdk.ErrBackoffRetry)
 
 	cancel()
 

@@ -49,8 +49,9 @@ func TestSource_Configure_requiredFieldsSuccess(t *testing.T) {
 			DSN:   testDSN,
 			Table: testTable,
 		},
-		OrderingColumn: "created_at",
-		BatchSize:      1000,
+		OrderingColumn:   "created_at",
+		CopyExistingData: true,
+		BatchSize:        1000,
 	})
 }
 
@@ -62,11 +63,12 @@ func TestSource_Configure_allFieldsSuccess(t *testing.T) {
 	s := Source{}
 
 	err := s.Configure(context.Background(), map[string]string{
-		config.DSN:            testDSN,
-		config.Table:          testTable,
-		config.OrderingColumn: "created_at",
-		config.KeyColumns:     "id,name",
-		config.BatchSize:      "10000",
+		config.DSN:              testDSN,
+		config.Table:            testTable,
+		config.OrderingColumn:   "created_at",
+		config.CopyExistingData: "false",
+		config.KeyColumns:       "id,name",
+		config.BatchSize:        "10000",
 	})
 	is.NoErr(err)
 	is.Equal(s.config, config.Source{
@@ -75,8 +77,9 @@ func TestSource_Configure_allFieldsSuccess(t *testing.T) {
 			Table:      testTable,
 			KeyColumns: []string{"id", "name"},
 		},
-		OrderingColumn: "created_at",
-		BatchSize:      10000,
+		OrderingColumn:   "created_at",
+		CopyExistingData: false,
+		BatchSize:        10000,
 	})
 }
 

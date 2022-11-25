@@ -32,19 +32,22 @@ const (
 	timeTypeLayout   = "15:04:05"
 	timeTzTypeLayout = "15:04:05Z07"
 
-	querySchemaColumnTypes = `SELECT "column", type FROM pg_table_def WHERE tablename = '%s'%s;`
-	whereSchemaClause      = ` AND schemaname = '%s'`
+	querySchemaColumnTypes = `SELECT "column", type FROM pg_table_def WHERE tablename = $1%s;`
+	whereSchemaClause      = ` AND schemaname = $2`
 )
 
 // GetColumnTypes returns a map containing all table's columns and their database types.
 func GetColumnTypes(ctx context.Context, db *sqlx.DB, table, schema string) (map[string]string, error) {
+	args := []any{table}
+
 	whereClause := ""
 	if schema != "" {
-		whereClause = fmt.Sprintf(whereSchemaClause, schema)
+		whereClause = whereSchemaClause
+		args = append(args, schema)
 	}
 
-	query := fmt.Sprintf(querySchemaColumnTypes, table, whereClause)
-	rows, err := db.QueryxContext(ctx, query)
+	query := fmt.Sprintf(querySchemaColumnTypes, whereClause)
+	rows, err := db.QueryxContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("select column types: %w", err)
 	}
