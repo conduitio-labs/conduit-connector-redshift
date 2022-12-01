@@ -1,4 +1,4 @@
-name: Bug
+name: 🐛 Bug
 description: Report a bug.
 title: "Bug: <title>"
 labels: [bug, triage]
@@ -23,7 +23,7 @@ body:
   - type: input
     attributes:
       label: Version
-      description: "Version of the Conduit connector as well as version of Amazon Redshift connector you're using."
-      placeholder: v0.1.0
+      description: "Version of connector"
+      placeholder: v0.1.0 darwin/amd64
     validations:
       required: true
