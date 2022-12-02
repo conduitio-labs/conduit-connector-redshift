@@ -16,28 +16,16 @@ package source
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/url"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/config"
 	"github.com/conduitio-labs/conduit-connector-redshift/source/iterator"
 	sdk "github.com/conduitio/conduit-connector-sdk"
-	"github.com/jmoiron/sqlx"
-	"go.uber.org/multierr"
-
 	_ "github.com/jackc/pgx/v5/stdlib" // sql driver
 )
 
-const (
-	// driverName is a database driver name.
-	driverName = "pgx"
-	// keySearchPath is a key of get parameter of a datatable's schema name.
-	keySearchPath = "search_path"
-
-	// querySelectLastProcessedValFmt is a query pattern to select the last value of the orderingColumn column.
-	querySelectLastProcessedValFmt = "SELECT %s FROM %s ORDER BY %s DESC LIMIT 1;"
-)
+// driverName is a database driver name.
+const driverName = "pgx"
 
 // Iterator interface.
 type Iterator interface {
@@ -50,10 +38,8 @@ type Iterator interface {
 type Source struct {
 	sdk.UnimplementedSource
 
-	config           config.Source
-	db               *sqlx.DB
-	lastProcessedVal any
-	iterator         Iterator
+	config   config.Source
+	iterator Iterator
 }
 
 // NewSource initialises a new source.
@@ -67,7 +53,7 @@ func (s *Source) Parameters() map[string]sdk.Parameter {
 		config.DSN: {
 			Default:     "",
 			Required:    true,
-			Description: "data source name to connect to the Amazon Redshift.",
+			Description: "Data source name to connect to the Amazon Redshift.",
 		},
 		config.Table: {
 			Default:     "",
@@ -80,11 +66,10 @@ func (s *Source) Parameters() map[string]sdk.Parameter {
 			Description: "Column name that the connector will use for ordering rows. Column must contain unique " +
 				"values and suitable for sorting, otherwise the snapshot won't work correctly.",
 		},
-		config.CopyExistingData: {
-			Default:  "true",
-			Required: false,
-			Description: "The field determines whether the connector will move already existing data " +
-				"or only those that will be available after it starts.",
+		config.Snapshot: {
+			Default:     "true",
+			Required:    false,
+			Description: "Whether the connector will take a snapshot of the entire table before starting cdc mode.",
 		},
 		config.KeyColumns: {
 			Default:     "",
@@ -104,58 +89,26 @@ func (s *Source) Parameters() map[string]sdk.Parameter {
 func (s *Source) Configure(ctx context.Context, cfgRaw map[string]string) error {
 	sdk.Logger(ctx).Info().Msg("Configuring Amazon Redshift Source...")
 
-	cfg, err := config.ParseSource(cfgRaw)
+	var err error
+
+	s.config, err = config.ParseSource(cfgRaw)
 	if err != nil {
 		return fmt.Errorf("parse source config: %w", err)
 	}
 
-	s.config = cfg
-
 	return nil
 }
 
-// Open prepare the plugin to start sending records from the given position.
+// Open parses the position and initializes the iterator.
 func (s *Source) Open(ctx context.Context, position sdk.Position) error {
 	sdk.Logger(ctx).Info().Msg("Opening an Amazon Redshift Source...")
 
-	var err error
-
-	s.db, err = sqlx.Open(driverName, s.config.DSN)
+	pos, err := iterator.ParseSDKPosition(position)
 	if err != nil {
-		return fmt.Errorf("open db connection: %w", err)
+		return fmt.Errorf("parse position: %w", err)
 	}
 
-	err = s.db.Ping()
-	if err != nil {
-		return fmt.Errorf("ping: %w", err)
-	}
-
-	// if position is nil will use it, if it's not and copyExistingData is false -
-	// populate it with the value of the last row orderingColumn column
-	if position != nil {
-		if err = json.Unmarshal(position, &s.lastProcessedVal); err != nil {
-			return fmt.Errorf("unmarshal sdk.Position into Position: %w", err)
-		}
-	} else if !s.config.CopyExistingData {
-		if err = s.populateLastProcessedVal(ctx); err != nil {
-			return fmt.Errorf("populate last processed value: %w", err)
-		}
-	}
-
-	u, err := url.Parse(s.config.DSN)
-	if err != nil {
-		return fmt.Errorf("parse dsn: %w", err)
-	}
-
-	s.iterator, err = iterator.New(ctx, iterator.Params{
-		DB:               s.db,
-		LastProcessedVal: s.lastProcessedVal,
-		Table:            s.config.Table,
-		KeyColumns:       s.config.KeyColumns,
-		OrderingColumn:   s.config.OrderingColumn,
-		BatchSize:        s.config.BatchSize,
-		Schema:           u.Query().Get(keySearchPath),
-	})
+	s.iterator, err = iterator.New(ctx, driverName, pos, s.config)
 	if err != nil {
 		return fmt.Errorf("new iterator: %w", err)
 	}
@@ -184,7 +137,7 @@ func (s *Source) Read(ctx context.Context) (sdk.Record, error) {
 	return record, nil
 }
 
-// Ack appends the last processed value to the slice to clear the tracking table in the future.
+// Ack logs the debug event with the position.
 func (s *Source) Ack(ctx context.Context, position sdk.Position) error {
 	sdk.Logger(ctx).Debug().Str("position", string(position)).Msg("got ack")
 
@@ -192,34 +145,12 @@ func (s *Source) Ack(ctx context.Context, position sdk.Position) error {
 }
 
 // Teardown gracefully shutdown connector.
-func (s *Source) Teardown(ctx context.Context) (err error) {
+func (s *Source) Teardown(ctx context.Context) error {
 	sdk.Logger(ctx).Info().Msg("Tearing down the Amazon Redshift Source")
 
 	if s.iterator != nil {
-		err = s.iterator.Stop()
-	}
-
-	if s.db != nil {
-		err = multierr.Append(err, s.db.Close())
-	}
-
-	return
-}
-
-// populateLastProcessedVal selects the last value of orderingColumn column
-// and sets it to the lastProcessedVal.
-func (s *Source) populateLastProcessedVal(ctx context.Context) error {
-	query := fmt.Sprintf(querySelectLastProcessedValFmt,
-		s.config.OrderingColumn, s.config.Table, s.config.OrderingColumn)
-
-	rows, err := s.db.QueryxContext(ctx, query)
-	if err != nil {
-		return fmt.Errorf("execute select last processed value query %q: %w", query, err)
-	}
-
-	for rows.Next() {
-		if err = rows.Scan(&s.lastProcessedVal); err != nil {
-			return fmt.Errorf("scan last processed value: %w", err)
+		if err := s.iterator.Stop(); err != nil {
+			return fmt.Errorf("stop iterator: %w", err)
 		}
 	}
 

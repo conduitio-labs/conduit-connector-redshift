@@ -18,41 +18,30 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/columntypes"
+	"github.com/conduitio-labs/conduit-connector-redshift/config"
 	sdk "github.com/conduitio/conduit-connector-sdk"
+	"github.com/huandu/go-sqlbuilder"
 	"github.com/jmoiron/sqlx"
+	"go.uber.org/multierr"
 )
 
-// metadata related.
 const (
-	metadataTable = "redshift.table"
-
-	querySelectRowsFmt = "SELECT * FROM %s%s ORDER BY %s ASC LIMIT %d;"
-	whereClauseFmt     = " WHERE %s > $1"
-
-	querySelectPKs = `
-	SELECT
-		kcu.column_name
-	FROM
-    	information_schema.table_constraints tco
-        	JOIN information_schema.key_column_usage kcu ON kcu.constraint_name = tco.constraint_name
-        	AND kcu.constraint_schema = tco.constraint_schema
-        	AND kcu.constraint_name = tco.constraint_name
-	WHERE
-    	tco.constraint_type = 'PRIMARY KEY'
-		AND kcu.table_name = $1%s`
-	whereClauseSchema = " AND kcu.table_schema = $2"
+	// metadataFieldTable is a name of a record metadata field that stores a Redshift table name.
+	metadataFieldTable = "redshift.table"
+	// keySearchPath is a key of get parameter of a datatable's schema name.
+	keySearchPath = "search_path"
 )
 
 // Iterator is an implementation of an iterator for Amazon Redshift.
 type Iterator struct {
-	db   *sqlx.DB
-	rows *sqlx.Rows
+	db       *sqlx.DB
+	rows     *sqlx.Rows
+	position *Position
 
-	// lastProcessedVal is a last processed orderingColumn column value.
-	lastProcessedVal any
 	// table is a table name.
 	table string
 	// keyColumns is a name of the column that iterator will use for setting key in record.
@@ -61,41 +50,53 @@ type Iterator struct {
 	orderingColumn string
 	// batchSize is a size of rows batch.
 	batchSize int
-	// schema is a schema name.
-	schema string
 	// columnTypes is a map with all column types.
 	columnTypes map[string]string
 }
 
-// Params is an incoming iterator params for the New function.
-type Params struct {
-	DB               *sqlx.DB
-	LastProcessedVal any
-	Table            string
-	KeyColumns       []string
-	OrderingColumn   string
-	BatchSize        int
-	Schema           string
-}
-
 // New creates a new instance of the iterator.
-func New(ctx context.Context, params Params) (*Iterator, error) {
+func New(ctx context.Context, driverName string, pos *Position, config config.Source) (*Iterator, error) {
+	var err error
+
 	iterator := &Iterator{
-		db:               params.DB,
-		lastProcessedVal: params.LastProcessedVal,
-		table:            params.Table,
-		keyColumns:       params.KeyColumns,
-		orderingColumn:   params.OrderingColumn,
-		batchSize:        params.BatchSize,
-		schema:           params.Schema,
+		position:       pos,
+		table:          config.Table,
+		keyColumns:     config.KeyColumns,
+		orderingColumn: config.OrderingColumn,
+		batchSize:      config.BatchSize,
 	}
 
-	err := iterator.populateKeyColumns(ctx)
+	iterator.db, err = sqlx.Open(driverName, config.DSN)
+	if err != nil {
+		return nil, fmt.Errorf("open db connection: %w", err)
+	}
+
+	if iterator.position.LastProcessedValue == nil {
+		latestSnapshotValue, latestValErr := iterator.latestSnapshotValue(ctx)
+		if latestValErr != nil {
+			return nil, fmt.Errorf("get latest snapshot value: %w", latestValErr)
+		}
+
+		if config.Snapshot {
+			iterator.position.LatestSnapshotValue = latestSnapshotValue
+		} else {
+			iterator.position.LastProcessedValue = latestSnapshotValue
+		}
+	}
+
+	u, err := url.Parse(config.DSN)
+	if err != nil {
+		return nil, fmt.Errorf("parse dsn: %w", err)
+	}
+
+	schema := u.Query().Get(keySearchPath)
+
+	err = iterator.populateKeyColumns(ctx, schema)
 	if err != nil {
 		return nil, fmt.Errorf("populate key columns: %w", err)
 	}
 
-	iterator.columnTypes, err = columntypes.GetColumnTypes(ctx, params.DB, params.Table, params.Schema)
+	iterator.columnTypes, err = columntypes.GetColumnTypes(ctx, iterator.db, iterator.table, schema)
 	if err != nil {
 		return nil, fmt.Errorf("get column types: %w", err)
 	}
@@ -108,9 +109,30 @@ func New(ctx context.Context, params Params) (*Iterator, error) {
 	return iterator, nil
 }
 
-// HasNext returns a bool indicating whether the iterator has the next record to return or not.
+// HasNext returns a bool indicating whether the source has the next record to return or not.
 func (iter *Iterator) HasNext(ctx context.Context) (bool, error) {
-	return iter.hasNext(ctx)
+	if iter.rows != nil && iter.rows.Next() {
+		return true, nil
+	}
+
+	if err := iter.loadRows(ctx); err != nil {
+		return false, fmt.Errorf("load rows: %w", err)
+	}
+
+	if iter.rows.Next() {
+		return true, nil
+	}
+
+	if iter.position.LatestSnapshotValue != nil {
+		iter.position.LastProcessedValue = iter.position.LatestSnapshotValue
+		iter.position.LatestSnapshotValue = nil
+
+		if err := iter.loadRows(ctx); err != nil {
+			return false, fmt.Errorf("load rows: %w", err)
+		}
+	}
+
+	return iter.rows.Next(), nil
 }
 
 // Next returns the next record.
@@ -146,102 +168,112 @@ func (iter *Iterator) Next(_ context.Context) (sdk.Record, error) {
 
 	// set a new position into the variable,
 	// to avoid saving position into the struct until we marshal the position
-	positionBytes, err := json.Marshal(transformedRow[iter.orderingColumn])
+	position := iter.position
+	// set the value from iter.orderingColumn column you chose
+	position.LastProcessedValue = transformedRow[iter.orderingColumn]
+
+	convertedPosition, err := position.marshal()
 	if err != nil {
-		return sdk.Record{}, fmt.Errorf("marshal position: %w", err)
+		return sdk.Record{}, fmt.Errorf("convert position %w", err)
 	}
 
-	iter.lastProcessedVal = transformedRow[iter.orderingColumn]
+	iter.position = position
 
 	metadata := sdk.Metadata{
-		metadataTable: iter.table,
+		metadataFieldTable: iter.table,
 	}
 	metadata.SetCreatedAt(time.Now().UTC())
 
-	return sdk.Util.Source.NewRecordCreate(
-		positionBytes,
-		metadata,
-		key,
-		sdk.RawData(rowBytes),
-	), nil
+	if position.LatestSnapshotValue != nil {
+		return sdk.Util.Source.NewRecordSnapshot(convertedPosition, metadata, key, sdk.RawData(rowBytes)), nil
+	}
+
+	return sdk.Util.Source.NewRecordCreate(convertedPosition, metadata, key, sdk.RawData(rowBytes)), nil
 }
 
 // Stop stops iterators and closes database connection.
 func (iter *Iterator) Stop() error {
+	var err error
+
 	if iter.rows != nil {
-		if err := iter.rows.Close(); err != nil {
-			return fmt.Errorf("stop iterator: %w", err)
-		}
+		err = iter.rows.Close()
+	}
+
+	if iter.db != nil {
+		err = multierr.Append(err, iter.db.Close())
+	}
+
+	if err != nil {
+		return fmt.Errorf("close db rows and db: %w", err)
 	}
 
 	return nil
-}
-
-// hasNext returns a bool indicating whether the source has the next record to return or not.
-func (iter *Iterator) hasNext(ctx context.Context) (bool, error) {
-	if iter.rows != nil && iter.rows.Next() {
-		return true, nil
-	}
-
-	if err := iter.loadRows(ctx); err != nil {
-		return false, fmt.Errorf("load rows: %w", err)
-	}
-
-	return iter.rows.Next(), nil
 }
 
 // loadRows selects a batch of rows from a database, based on the
-// table, columns, orderingColumn, batchSize and the current position.
+// table, columns, orderingColumn, batchSize and current position.
 func (iter *Iterator) loadRows(ctx context.Context) error {
-	whereClause := ""
-	args := make([]any, 0, 1)
-	if iter.lastProcessedVal != nil {
-		whereClause = fmt.Sprintf(whereClauseFmt, iter.orderingColumn)
-		args = append(args, iter.lastProcessedVal)
+	var err error
+
+	sb := sqlbuilder.PostgreSQL.NewSelectBuilder().
+		Select("*").
+		From(iter.table).
+		OrderBy(iter.orderingColumn).
+		Limit(iter.batchSize)
+
+	if iter.position.LastProcessedValue != nil {
+		sb.Where(sb.GreaterThan(iter.orderingColumn, iter.position.LastProcessedValue))
 	}
 
-	query := fmt.Sprintf(querySelectRowsFmt, iter.table, whereClause, iter.orderingColumn, iter.batchSize)
+	if iter.position.LatestSnapshotValue != nil {
+		sb.Where(sb.LessEqualThan(iter.orderingColumn, iter.position.LatestSnapshotValue))
+	}
 
-	rows, err := iter.db.QueryxContext(ctx, query, args...)
+	query, args := sb.Build()
+
+	iter.rows, err = iter.db.QueryxContext(ctx, query, args...)
 	if err != nil {
-		return fmt.Errorf("execute select query %q, %v: %w", query, args, err)
+		return fmt.Errorf("execute select data query %q, %v: %w", query, args, err)
 	}
-
-	iter.rows = rows
 
 	return nil
 }
 
-// populateKeyColumns populates keyColumn from the database's metadata
-// or from the orderingColumn configuration field.
-func (iter *Iterator) populateKeyColumns(ctx context.Context) error {
+// populateKeyColumns populates keyColumn from the database metadata
+// or from the orderingColumn configuration field in the described order if it's empty.
+func (iter *Iterator) populateKeyColumns(ctx context.Context, schema string) error {
 	if len(iter.keyColumns) != 0 {
 		return nil
 	}
 
-	var (
-		query = fmt.Sprintf(querySelectPKs, "")
-		args  = []any{iter.table}
-	)
+	sb := sqlbuilder.PostgreSQL.NewSelectBuilder().
+		Select("kcu.column_name").
+		From("information_schema.table_constraints tco").
+		Join("information_schema.key_column_usage kcu", "kcu.constraint_name = tco.constraint_name "+
+			"AND kcu.constraint_schema = tco.constraint_schema AND kcu.constraint_name = tco.constraint_name").
+		Where("tco.constraint_type = 'PRIMARY KEY'")
 
-	if iter.schema != "" {
-		query = fmt.Sprintf(querySelectPKs, whereClauseSchema)
-		args = append(args, iter.schema)
+	sb.Where(sb.Equal("kcu.table_name", iter.table))
+
+	if schema != "" {
+		sb.Where(sb.Equal("kcu.table_schema", schema))
 	}
+
+	query, args := sb.Build()
 
 	rows, err := iter.db.QueryxContext(ctx, query, args...)
 	if err != nil {
-		return fmt.Errorf("execute select primary keys %q, %v: %w", query, args, err)
+		return fmt.Errorf("execute query select primary keys %q, %v: %w", query, args, err)
 	}
 	defer rows.Close()
 
-	keyColumn := ""
+	columnName := ""
 	for rows.Next() {
-		if err = rows.Scan(&keyColumn); err != nil {
-			return fmt.Errorf("scan key column value: %w", err)
+		if err = rows.Scan(&columnName); err != nil {
+			return fmt.Errorf("scan primary key column name: %w", err)
 		}
 
-		iter.keyColumns = append(iter.keyColumns, keyColumn)
+		iter.keyColumns = append(iter.keyColumns, columnName)
 	}
 
 	if len(iter.keyColumns) != 0 {
@@ -251,4 +283,29 @@ func (iter *Iterator) populateKeyColumns(ctx context.Context) error {
 	iter.keyColumns = []string{iter.orderingColumn}
 
 	return nil
+}
+
+// latestSnapshotValue returns most recent value of orderingColumn column.
+func (iter *Iterator) latestSnapshotValue(ctx context.Context) (any, error) {
+	var latestSnapshotValue any
+
+	query := sqlbuilder.PostgreSQL.NewSelectBuilder().
+		Select(iter.orderingColumn).
+		From(iter.table).
+		OrderBy(iter.orderingColumn).Desc().
+		Limit(1).
+		String()
+
+	rows, err := iter.db.QueryxContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("execute select latest snapshot value query %q: %w", query, err)
+	}
+
+	for rows.Next() {
+		if err = rows.Scan(&latestSnapshotValue); err != nil {
+			return nil, fmt.Errorf("scan latest snapshot value: %w", err)
+		}
+	}
+
+	return latestSnapshotValue, nil
 }

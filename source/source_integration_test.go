@@ -33,7 +33,7 @@ import (
 
 const envNameDSN = "REDSHIFT_DSN"
 
-func TestSource_Read_noTable(t *testing.T) {
+func TestSource_Read_tableDoesNotExist(t *testing.T) {
 	var (
 		is  = is.New(t)
 		cfg = prepareConfig(t, "col")
@@ -42,9 +42,6 @@ func TestSource_Read_noTable(t *testing.T) {
 	db, err := sqlx.Open(driverName, cfg[config.DSN])
 	is.NoErr(err)
 	defer db.Close()
-
-	err = db.Ping()
-	is.NoErr(err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -55,12 +52,13 @@ func TestSource_Read_noTable(t *testing.T) {
 	is.NoErr(err)
 
 	err = src.Open(ctx, nil)
-	is.True(strings.Contains(err.Error(), "new iterator: load rows: execute select query"))
+	is.True(strings.Contains(err.Error(),
+		"new iterator: get latest snapshot value: execute select latest snapshot value query"))
 
 	cancel()
 }
 
-func TestSource_Read_emptyTable(t *testing.T) {
+func TestSource_Read_tableHasNoData(t *testing.T) {
 	var (
 		is  = is.New(t)
 		cfg = prepareConfig(t, "col")
@@ -69,9 +67,6 @@ func TestSource_Read_emptyTable(t *testing.T) {
 	db, err := sqlx.Open(driverName, cfg[config.DSN])
 	is.NoErr(err)
 	defer db.Close()
-
-	err = db.Ping()
-	is.NoErr(err)
 
 	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col INTEGER, PRIMARY KEY (col));", cfg[config.Table]))
 	is.NoErr(err)
@@ -110,9 +105,6 @@ func TestSource_Read_keyColumnsFromConfig(t *testing.T) {
 	db, err := sqlx.Open(driverName, cfg[config.DSN])
 	is.NoErr(err)
 	defer db.Close()
-
-	err = db.Ping()
-	is.NoErr(err)
 
 	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
 	is.NoErr(err)
@@ -158,9 +150,6 @@ func TestSource_Read_keyColumnsFromTableMetadata(t *testing.T) {
 	db, err := sqlx.Open(driverName, cfg[config.DSN])
 	is.NoErr(err)
 	defer db.Close()
-
-	err = db.Ping()
-	is.NoErr(err)
 
 	_, err = db.Exec(fmt.Sprintf(
 		"CREATE TABLE %s (col1 INTEGER, col2 INTEGER, col3 INTEGER, PRIMARY KEY (col1, col2, col3));",
@@ -209,9 +198,6 @@ func TestSource_Read_keyColumnsFromOrderingColumn(t *testing.T) {
 	db, err := sqlx.Open(driverName, cfg[config.DSN])
 	is.NoErr(err)
 	defer db.Close()
-
-	err = db.Ping()
-	is.NoErr(err)
 
 	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
 	is.NoErr(err)
@@ -283,9 +269,6 @@ func TestSource_Read_checkTypes(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
-	err = db.Ping()
-	is.NoErr(err)
-
 	_, err = db.Exec(fmt.Sprintf(`CREATE TABLE %s
 	(
 		small_int_type    smallint,
@@ -312,7 +295,7 @@ func TestSource_Read_checkTypes(t *testing.T) {
 		is.NoErr(err)
 	}()
 
-	locationKyiv, err := time.LoadLocation("Europe/Kyiv")
+	locationKyiv, err := time.LoadLocation("Europe/Warsaw")
 	is.NoErr(err)
 
 	varbyteTypeData := "test_varbyte"
@@ -400,21 +383,18 @@ func TestSource_Read_checkTypes(t *testing.T) {
 	is.NoErr(err)
 }
 
-func TestSource_Read_copyExistingData(t *testing.T) {
+func TestSource_Read_snapshotIsFalse(t *testing.T) {
 	var (
 		is  = is.New(t)
 		cfg = prepareConfig(t, "col1")
 	)
 
-	// set copyExistingData value to false
-	cfg[config.CopyExistingData] = "false"
+	// set snapshot value to false
+	cfg[config.Snapshot] = "false"
 
 	db, err := sqlx.Open(driverName, cfg[config.DSN])
 	is.NoErr(err)
 	defer db.Close()
-
-	err = db.Ping()
-	is.NoErr(err)
 
 	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
 	is.NoErr(err)
@@ -451,6 +431,7 @@ func TestSource_Read_copyExistingData(t *testing.T) {
 	is.Equal(record.Key, sdk.StructuredData(map[string]any{
 		"col1": int64(3),
 	}))
+	is.Equal(record.Operation, sdk.OperationCreate)
 
 	_, err = src.Read(ctx)
 	is.Equal(err, sdk.ErrBackoffRetry)
