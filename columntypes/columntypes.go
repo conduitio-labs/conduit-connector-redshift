@@ -112,7 +112,7 @@ func TransformRow(row map[string]any, columnTypes map[string]string) (map[string
 
 			val, err := time.Parse(timeTzTypeLayout, strings.TrimSpace(valueStr))
 			if err != nil {
-				return nil, fmt.Errorf("convert time wit timezone type from string to time: %w", err)
+				return nil, fmt.Errorf("convert time with timezone type from string to time: %w", err)
 			}
 
 			result[key] = val

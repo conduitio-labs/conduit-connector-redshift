@@ -78,8 +78,10 @@ func New(ctx context.Context, driverName string, pos *Position, config config.So
 		}
 
 		if config.Snapshot {
+			// set the LatestSnapshotValue to specify which record the snapshot iterator will work to
 			iterator.position.LatestSnapshotValue = latestSnapshotValue
 		} else {
+			// set the LastProcessedValue to skip a snapshot of the entire table
 			iterator.position.LastProcessedValue = latestSnapshotValue
 		}
 	}
@@ -124,15 +126,19 @@ func (iter *Iterator) HasNext(ctx context.Context) (bool, error) {
 	}
 
 	if iter.position.LatestSnapshotValue != nil {
+		// switch to CDC mode
 		iter.position.LastProcessedValue = iter.position.LatestSnapshotValue
 		iter.position.LatestSnapshotValue = nil
 
+		// and load new rows
 		if err := iter.loadRows(ctx); err != nil {
 			return false, fmt.Errorf("load rows: %w", err)
 		}
+
+		return iter.rows.Next(), nil
 	}
 
-	return iter.rows.Next(), nil
+	return false, nil
 }
 
 // Next returns the next record.
@@ -168,16 +174,16 @@ func (iter *Iterator) Next(_ context.Context) (sdk.Record, error) {
 
 	// set a new position into the variable,
 	// to avoid saving position into the struct until we marshal the position
-	position := iter.position
+	position := *iter.position
 	// set the value from iter.orderingColumn column you chose
 	position.LastProcessedValue = transformedRow[iter.orderingColumn]
 
 	convertedPosition, err := position.marshal()
 	if err != nil {
-		return sdk.Record{}, fmt.Errorf("convert position %w", err)
+		return sdk.Record{}, fmt.Errorf("convert position :%w", err)
 	}
 
-	iter.position = position
+	iter.position = &position
 
 	metadata := sdk.Metadata{
 		metadataFieldTable: iter.table,
