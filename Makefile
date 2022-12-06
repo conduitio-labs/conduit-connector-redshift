@@ -12,3 +12,6 @@ lint:
 dep:
 	go mod download
 	go mod tidy
+
+mockgen:
+	mockgen -package mock -source source/source.go -destination source/mock/source.go

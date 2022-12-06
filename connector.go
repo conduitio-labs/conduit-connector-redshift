@@ -15,12 +15,13 @@
 package redshift
 
 import (
+	"github.com/conduitio-labs/conduit-connector-redshift/source"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 )
 
 // Connector is a sdk.Connector of Amazon Redshift.
 var Connector = sdk.Connector{
 	NewSpecification: Specification,
-	NewSource:        nil,
+	NewSource:        source.NewSource,
 	NewDestination:   nil,
 }

@@ -42,6 +42,7 @@ func TestParseSource(t *testing.T) {
 					Table: testValueTable,
 				},
 				OrderingColumn: "id",
+				Snapshot:       true,
 				BatchSize:      defaultBatchSize,
 			},
 		},
@@ -59,6 +60,26 @@ func TestParseSource(t *testing.T) {
 					Table: testValueTable,
 				},
 				OrderingColumn: "id",
+				Snapshot:       true,
+				BatchSize:      100,
+			},
+		},
+		{
+			name: "success_snapshot_is_false",
+			in: map[string]string{
+				DSN:            testValueDSN,
+				Table:          testValueTable,
+				OrderingColumn: "id",
+				Snapshot:       "false",
+				BatchSize:      "100",
+			},
+			want: Source{
+				Configuration: Configuration{
+					DSN:   testValueDSN,
+					Table: testValueTable,
+				},
+				OrderingColumn: "id",
+				Snapshot:       false,
 				BatchSize:      100,
 			},
 		},
@@ -76,6 +97,7 @@ func TestParseSource(t *testing.T) {
 					Table: testValueTable,
 				},
 				OrderingColumn: "id",
+				Snapshot:       true,
 				BatchSize:      100000,
 			},
 		},
@@ -93,6 +115,7 @@ func TestParseSource(t *testing.T) {
 					Table: testValueTable,
 				},
 				OrderingColumn: "id",
+				Snapshot:       true,
 				BatchSize:      1,
 			},
 		},
@@ -161,6 +184,16 @@ func TestParseSource(t *testing.T) {
 				BatchSize:      "-1",
 			},
 			err: gteErr(BatchSize, "1"),
+		},
+		{
+			name: "failure_snapshot_is_invalid",
+			in: map[string]string{
+				DSN:            testValueDSN,
+				Table:          testValueTable,
+				OrderingColumn: "id",
+				Snapshot:       "a",
+			},
+			err: fmt.Errorf(`parse %q: strconv.ParseBool: parsing "a": invalid syntax`, Snapshot),
 		},
 	}
 

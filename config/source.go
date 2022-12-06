@@ -20,12 +20,17 @@ import (
 )
 
 const (
-	// OrderingColumn is a config name for an ordering column.
+	// OrderingColumn is a config name for the orderingColumn field.
 	OrderingColumn = "orderingColumn"
+	// Snapshot is a config name for the snapshot field.
+	Snapshot = "snapshot"
 	// BatchSize is the config name for a batch size.
 	BatchSize = "batchSize"
 
+	// defaultBatchSize is a default value for the batchSize field.
 	defaultBatchSize = 1000
+	// defaultSnapshot is a default value for the snapshot field.
+	defaultSnapshot = true
 )
 
 // Source contains source-specific configurable values.
@@ -34,6 +39,9 @@ type Source struct {
 
 	// OrderingColumn is a name of a column that the connector will use for ordering rows.
 	OrderingColumn string `key:"orderingColumn" validate:"required,lowercase,excludesall= ,lte=127"`
+	// Snapshot is the configuration that determines whether the connector
+	// will take a snapshot of the entire table before starting cdc mode.
+	Snapshot bool `key:"snapshot"`
 	// BatchSize is a size of rows batch.
 	BatchSize int `key:"batchSize" validate:"gte=1,lte=100000"`
 }
@@ -48,7 +56,15 @@ func ParseSource(cfg map[string]string) (Source, error) {
 	sourceConfig := Source{
 		Configuration:  commonConfig,
 		OrderingColumn: cfg[OrderingColumn],
+		Snapshot:       defaultSnapshot,
 		BatchSize:      defaultBatchSize,
+	}
+
+	if cfg[Snapshot] != "" {
+		sourceConfig.Snapshot, err = strconv.ParseBool(cfg[Snapshot])
+		if err != nil {
+			return Source{}, fmt.Errorf("parse %q: %w", Snapshot, err)
+		}
 	}
 
 	if cfg[BatchSize] != "" {
