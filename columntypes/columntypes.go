@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/huandu/go-sqlbuilder"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -32,24 +33,29 @@ const (
 	timeTypeLayout   = "15:04:05"
 	timeTzTypeLayout = "15:04:05Z07"
 
-	querySchemaColumnTypes = `SELECT "column", type FROM pg_table_def WHERE tablename = $1%s;`
-	whereSchemaClause      = ` AND schemaname = $2`
+	selectColumns = `"column", type`
+	colTable      = "tablename"
+	colSchema     = "schemaname"
+	tableDef      = "pg_table_def"
 )
 
 // GetColumnTypes returns a map containing all table's columns and their database types.
 func GetColumnTypes(ctx context.Context, db *sqlx.DB, table, schema string) (map[string]string, error) {
-	args := []any{table}
+	sb := sqlbuilder.PostgreSQL.NewSelectBuilder().
+		Select(selectColumns).
+		From(tableDef)
 
-	whereClause := ""
+	sb.Where(sb.Equal(colTable, table))
+
 	if schema != "" {
-		whereClause = whereSchemaClause
-		args = append(args, schema)
+		sb.Where(sb.Equal(colSchema, schema))
 	}
 
-	query := fmt.Sprintf(querySchemaColumnTypes, whereClause)
+	query, args := sb.Build()
+
 	rows, err := db.QueryxContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("select column types: %w", err)
+		return nil, fmt.Errorf("select column types %q, %v: %w", query, args, err)
 	}
 
 	columnTypes := make(map[string]string)

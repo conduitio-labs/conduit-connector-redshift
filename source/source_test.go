@@ -94,6 +94,7 @@ func TestSource_Configure_failure(t *testing.T) {
 		config.DSN:   testDSN,
 		config.Table: testTable,
 	})
+	is.True(err != nil)
 	is.Equal(err.Error(), `parse source config: "orderingColumn" value must be set`)
 }
 
@@ -145,6 +146,7 @@ func TestSource_Read_hasNextFailure(t *testing.T) {
 	}
 
 	_, err := s.Read(ctx)
+	is.True(err != nil)
 	is.Equal(err.Error(), "has next: get data: fail")
 }
 
@@ -165,6 +167,7 @@ func TestSource_Read_nextFailure(t *testing.T) {
 	}
 
 	_, err := s.Read(ctx)
+	is.True(err != nil)
 	is.Equal(err.Error(), "next: key is not exist")
 }
 
@@ -201,5 +204,6 @@ func TestSource_Teardown_failure(t *testing.T) {
 	}
 
 	err := s.Teardown(context.Background())
+	is.True(err != nil)
 	is.Equal(err.Error(), "stop iterator: some error")
 }
