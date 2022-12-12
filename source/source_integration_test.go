@@ -16,7 +16,6 @@ package source
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -31,6 +30,7 @@ import (
 	"github.com/matryer/is"
 )
 
+// envNameURL is a Redshift url environment name.
 const envNameDSN = "REDSHIFT_DSN"
 
 func TestSource_Read_tableDoesNotExist(t *testing.T) {
@@ -456,16 +456,8 @@ func prepareConfig(t *testing.T, orderingColumn string, keyColumns ...string) ma
 
 	return map[string]string{
 		config.DSN:            dsn,
-		config.Table:          fmt.Sprintf("conduit_src_test_%s", randString(6)),
+		config.Table:          fmt.Sprintf("conduit_src_test_%d", time.Now().UnixNano()),
 		config.OrderingColumn: orderingColumn,
 		config.KeyColumns:     strings.Join(keyColumns, ","),
 	}
-}
-
-// randString generates a random string of length n.
-func randString(n int) string {
-	b := make([]byte, n)
-	rand.Read(b) //nolint:errcheck // does not actually fail
-
-	return hex.EncodeToString(b)
 }
