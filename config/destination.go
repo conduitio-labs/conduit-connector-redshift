@@ -12,17 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package redshift
+package config
 
 import (
-	"github.com/conduitio-labs/conduit-connector-redshift/destination"
-	"github.com/conduitio-labs/conduit-connector-redshift/source"
-	sdk "github.com/conduitio/conduit-connector-sdk"
+	"fmt"
 )
 
-// Connector is a sdk.Connector of Amazon Redshift.
-var Connector = sdk.Connector{
-	NewSpecification: Specification,
-	NewSource:        source.NewSource,
-	NewDestination:   destination.NewDestination,
+// Destination is a destination configuration needed to connect to Redshift database.
+type Destination struct {
+	Configuration
+}
+
+// ParseDestination parses a destination configuration.
+func ParseDestination(cfg map[string]string) (Destination, error) {
+	config, err := parseCommon(cfg)
+	if err != nil {
+		return Destination{}, fmt.Errorf("parse common config: %w", err)
+	}
+
+	destinationConfig := Destination{
+		Configuration: config,
+	}
+
+	return destinationConfig, nil
 }

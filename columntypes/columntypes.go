@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/jmoiron/sqlx"
 )
@@ -38,6 +39,12 @@ const (
 	colSchema     = "schemaname"
 	tableDef      = "pg_table_def"
 )
+
+var timeLayouts = []string{
+	time.RFC3339, time.RFC3339Nano, time.Layout, time.ANSIC, time.UnixDate, time.RubyDate, time.RFC822, time.RFC822Z,
+	time.RFC850, time.RFC1123, time.RFC1123Z, time.RFC3339, time.RFC3339, time.RFC3339Nano, time.Kitchen, time.Stamp,
+	time.StampMilli, time.StampMicro, time.StampNano,
+}
 
 // GetColumnTypes returns a map containing all table's columns and their database types.
 func GetColumnTypes(ctx context.Context, db *sqlx.DB, table, schema string) (map[string]string, error) {
@@ -129,4 +136,54 @@ func TransformRow(row map[string]any, columnTypes map[string]string) (map[string
 	}
 
 	return result, nil
+}
+
+// ConvertStructureData converts a [sdk.StructureData] values to a proper database types.
+func ConvertStructureData(
+	columnTypes map[string]string,
+	data sdk.StructuredData,
+) (sdk.StructuredData, error) {
+	result := make(sdk.StructuredData, len(data))
+
+	for key, value := range data {
+		if value == nil {
+			result[key] = nil
+
+			continue
+		}
+
+		switch columnTypes[key] {
+		case timeType:
+			t, err := parseTime(value.(string))
+			if err != nil {
+				return nil, fmt.Errorf("parse time: %w", err)
+			}
+
+			result[key] = t.Format(timeTypeLayout)
+		case timeTzType:
+			t, err := parseTime(value.(string))
+			if err != nil {
+				return nil, fmt.Errorf("parse time: %w", err)
+			}
+
+			result[key] = t.Format(timeTzTypeLayout)
+		default:
+			result[key] = value
+		}
+	}
+
+	return result, nil
+}
+
+func parseTime(val string) (time.Time, error) {
+	for i := range timeLayouts {
+		timeValue, err := time.Parse(timeLayouts[i], val)
+		if err != nil {
+			continue
+		}
+
+		return timeValue, nil
+	}
+
+	return time.Time{}, fmt.Errorf("cannot parse time: %s", val)
 }

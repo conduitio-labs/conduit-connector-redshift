@@ -50,7 +50,7 @@ type Source struct {
 func ParseSource(cfg map[string]string) (Source, error) {
 	commonConfig, err := parseCommon(cfg)
 	if err != nil {
-		return Source{}, fmt.Errorf("parse source configuration: %w", err)
+		return Source{}, fmt.Errorf("parse common configuration: %w", err)
 	}
 
 	sourceConfig := Source{
