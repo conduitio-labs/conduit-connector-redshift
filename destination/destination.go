@@ -48,7 +48,7 @@ func NewDestination() sdk.Destination {
 	return sdk.DestinationWithMiddleware(&Destination{}, sdk.DefaultDestinationMiddleware()...)
 }
 
-// Parameters returns a map of named Parameters that describe how to configure the Source.
+// Parameters returns a map of named Parameters that describe how to configure the Destination.
 func (d *Destination) Parameters() map[string]sdk.Parameter {
 	return map[string]sdk.Parameter{
 		config.DSN: {
@@ -70,8 +70,10 @@ func (d *Destination) Parameters() map[string]sdk.Parameter {
 }
 
 // Configure parses and stores configurations, returns an error in case of invalid configuration.
-func (d *Destination) Configure(ctx context.Context, cfg map[string]string) (err error) {
+func (d *Destination) Configure(ctx context.Context, cfg map[string]string) error {
 	sdk.Logger(ctx).Info().Msg("Configuring Redshift Destination...")
+
+	var err error
 
 	d.config, err = config.ParseDestination(cfg)
 	if err != nil {
@@ -81,9 +83,11 @@ func (d *Destination) Configure(ctx context.Context, cfg map[string]string) (err
 	return nil
 }
 
-// Open initializes a publisher client.
-func (d *Destination) Open(ctx context.Context) (err error) {
+// Open makes sure everything is prepared to receive records.
+func (d *Destination) Open(ctx context.Context) error {
 	sdk.Logger(ctx).Info().Msg("Opening a Redshift Destination...")
+
+	var err error
 
 	d.writer, err = writer.NewWriter(ctx, driverName, d.config)
 	if err != nil {
