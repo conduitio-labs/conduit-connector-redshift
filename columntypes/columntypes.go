@@ -27,13 +27,17 @@ import (
 )
 
 const (
+	// TimeTypeLayout is a time layout of Redshift Time data type.
+	TimeTypeLayout = "15:04:05"
+	// TimeTzTypeLayout is a time layout of Redshift Time with timezone data type.
+	TimeTzTypeLayout = "15:04:05Z07"
+
+	// Redshift types.
 	numericType = "numeric"
 	timeType    = "time without time zone"
 	timeTzType  = "time with time zone"
 
-	timeTypeLayout   = "15:04:05"
-	timeTzTypeLayout = "15:04:05Z07"
-
+	// constants for sql-builder to get column types.
 	selectColumns = `"column", type`
 	colTable      = "tablename"
 	colSchema     = "schemaname"
@@ -110,7 +114,7 @@ func TransformRow(row map[string]any, columnTypes map[string]string) (map[string
 				return nil, fmt.Errorf("convert %q value to string", value)
 			}
 
-			val, err := time.Parse(timeTypeLayout, valueStr)
+			val, err := time.Parse(TimeTypeLayout, valueStr)
 			if err != nil {
 				return nil, fmt.Errorf("convert time type from string to time: %w", err)
 			}
@@ -123,7 +127,7 @@ func TransformRow(row map[string]any, columnTypes map[string]string) (map[string
 				return nil, fmt.Errorf("convert %q value to string", value)
 			}
 
-			val, err := time.Parse(timeTzTypeLayout, strings.TrimSpace(valueStr))
+			val, err := time.Parse(TimeTzTypeLayout, strings.TrimSpace(valueStr))
 			if err != nil {
 				return nil, fmt.Errorf("convert time with timezone type from string to time: %w", err)
 			}
@@ -159,14 +163,14 @@ func ConvertStructureData(
 				return nil, fmt.Errorf("parse time: %w", err)
 			}
 
-			result[key] = t.Format(timeTypeLayout)
+			result[key] = t.Format(TimeTypeLayout)
 		case timeTzType:
 			t, err := parseTime(value.(string))
 			if err != nil {
 				return nil, fmt.Errorf("parse time: %w", err)
 			}
 
-			result[key] = t.Format(timeTzTypeLayout)
+			result[key] = t.Format(TimeTzTypeLayout)
 		default:
 			result[key] = value
 		}
