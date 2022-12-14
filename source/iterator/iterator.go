@@ -34,6 +34,8 @@ const (
 	metadataFieldTable = "redshift.table"
 	// keySearchPath is a key of get parameter of a datatable's schema name.
 	keySearchPath = "search_path"
+	// pingTimeout is a database ping timeout.
+	pingTimeout = 10 * time.Second
 )
 
 // Iterator is an implementation of an iterator for Amazon Redshift.
@@ -71,6 +73,14 @@ func New(ctx context.Context, driverName string, pos *Position, config config.So
 		return nil, fmt.Errorf("open db connection: %w", err)
 	}
 
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	err = iterator.db.PingContext(ctxTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("ping db with timeout: %w", err)
+	}
+
 	if iterator.position.LastProcessedValue == nil {
 		latestSnapshotValue, latestValErr := iterator.latestSnapshotValue(ctx)
 		if latestValErr != nil {
@@ -86,19 +96,18 @@ func New(ctx context.Context, driverName string, pos *Position, config config.So
 		}
 	}
 
-	u, err := url.Parse(config.DSN)
+	uri, err := url.Parse(config.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("parse dsn: %w", err)
 	}
 
-	schema := u.Query().Get(keySearchPath)
-
-	err = iterator.populateKeyColumns(ctx, schema)
+	err = iterator.populateKeyColumns(ctx, uri.Query().Get(keySearchPath))
 	if err != nil {
 		return nil, fmt.Errorf("populate key columns: %w", err)
 	}
 
-	iterator.columnTypes, err = columntypes.GetColumnTypes(ctx, iterator.db, iterator.table, schema)
+	iterator.columnTypes, err = columntypes.GetColumnTypes(ctx,
+		iterator.db, iterator.table, uri.Query().Get(keySearchPath))
 	if err != nil {
 		return nil, fmt.Errorf("get column types: %w", err)
 	}
