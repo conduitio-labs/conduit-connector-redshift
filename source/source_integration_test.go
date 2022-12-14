@@ -33,8 +33,8 @@ import (
 const (
 	// envNameURL is a Redshift url environment name.
 	envNameDSN = "REDSHIFT_DSN"
-	// pingTimeoutSec is a ping db timeout in seconds.
-	pingTimeoutSec = 10
+	// pingTimeout is a database ping timeout.
+	pingTimeout = 10 * time.Second
 )
 
 func TestSource_Read_tableDoesNotExist(t *testing.T) {
@@ -50,7 +50,7 @@ func TestSource_Read_tableDoesNotExist(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeoutSec*time.Second)
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 
 	err = db.PingContext(ctxTimeout)
@@ -81,7 +81,7 @@ func TestSource_Read_tableHasNoData(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeoutSec*time.Second)
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 
 	err = db.PingContext(ctxTimeout)
@@ -125,7 +125,7 @@ func TestSource_Read_keyColumnsFromConfig(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeoutSec*time.Second)
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 
 	err = db.PingContext(ctxTimeout)
@@ -176,7 +176,7 @@ func TestSource_Read_keyColumnsFromTableMetadata(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeoutSec*time.Second)
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 
 	err = db.PingContext(ctxTimeout)
@@ -230,7 +230,7 @@ func TestSource_Read_keyColumnsFromOrderingColumn(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeoutSec*time.Second)
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 
 	err = db.PingContext(ctxTimeout)
@@ -306,7 +306,7 @@ func TestSource_Read_checkTypes(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeoutSec*time.Second)
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 
 	err = db.PingContext(ctxTimeout)
@@ -439,7 +439,7 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeoutSec*time.Second)
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 
 	err = db.PingContext(ctxTimeout)

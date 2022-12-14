@@ -34,8 +34,8 @@ const (
 	metadataFieldTable = "redshift.table"
 	// keySearchPath is a key of get parameter of a datatable's schema name.
 	keySearchPath = "search_path"
-	// pingTimeoutSec is a ping db timeout in seconds.
-	pingTimeoutSec = 10
+	// pingTimeout is a database ping timeout.
+	pingTimeout = 10 * time.Second
 )
 
 // Iterator is an implementation of an iterator for Amazon Redshift.
@@ -73,7 +73,7 @@ func New(ctx context.Context, driverName string, pos *Position, config config.So
 		return nil, fmt.Errorf("open db connection: %w", err)
 	}
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeoutSec*time.Second)
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 
 	err = iterator.db.PingContext(ctxTimeout)
