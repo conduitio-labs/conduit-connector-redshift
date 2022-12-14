@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/columntypes"
 	"github.com/conduitio-labs/conduit-connector-redshift/config"
@@ -32,6 +33,8 @@ const (
 	metadataFieldTable = "redshift.table"
 	// keySearchPath is a key of get parameter of a datatable's schema name.
 	keySearchPath = "search_path"
+	// pingTimeout is a database ping timeout.
+	pingTimeout = 10 * time.Second
 )
 
 // Writer implements a writer logic for Redshift destination.
@@ -54,6 +57,14 @@ func NewWriter(ctx context.Context, driverName string, config config.Destination
 	writer.db, err = sqlx.Open(driverName, config.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("open db connection: %w", err)
+	}
+
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	err = writer.db.PingContext(ctxTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("ping db with timeout: %w", err)
 	}
 
 	u, err := url.Parse(config.DSN)

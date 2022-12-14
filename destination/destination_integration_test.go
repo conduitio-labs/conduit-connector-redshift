@@ -32,8 +32,12 @@ import (
 	"github.com/matryer/is"
 )
 
-// envNameURL is a Redshift url environment name.
-const envNameDSN = "REDSHIFT_DSN"
+const (
+	// envNameURL is a Redshift url environment name.
+	envNameDSN = "REDSHIFT_DSN"
+	// pingTimeout is a database ping timeout.
+	pingTimeout = 10 * time.Second
+)
 
 func TestDestination_Write_checkTypes(t *testing.T) {
 	//nolint:tagliatelle // Redshift does not support uppercase letters
@@ -65,6 +69,15 @@ func TestDestination_Write_checkTypes(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	err = db.PingContext(ctxTimeout)
+	is.NoErr(err)
+
 	_, err = db.Exec(fmt.Sprintf(`CREATE TABLE %s
 	(
 		small_int_type    smallint,
@@ -90,9 +103,6 @@ func TestDestination_Write_checkTypes(t *testing.T) {
 		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.Table]))
 		is.NoErr(err)
 	}()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	locationKyiv, err := time.LoadLocation("Europe/Kyiv")
 	is.NoErr(err)
@@ -206,6 +216,15 @@ func TestDestination_Write_successKeyColumns(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	err = db.PingContext(ctxTimeout)
+	is.NoErr(err)
+
 	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
 	is.NoErr(err)
 
@@ -216,9 +235,6 @@ func TestDestination_Write_successKeyColumns(t *testing.T) {
 
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.Table]))
 	is.NoErr(err)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// set a KeyColumns field to the config
 	cfg[config.KeyColumns] = "col1"
@@ -294,6 +310,15 @@ func TestDestination_Write_failedWrongKeyColumnsField(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	err = db.PingContext(ctxTimeout)
+	is.NoErr(err)
+
 	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
 	is.NoErr(err)
 
@@ -304,9 +329,6 @@ func TestDestination_Write_failedWrongKeyColumnsField(t *testing.T) {
 
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.Table]))
 	is.NoErr(err)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// set a wrong KeyColumns field to the config
 	cfg[config.KeyColumns] = "wrong_column"
@@ -348,6 +370,15 @@ func TestDestination_Write_failedWrongPayloadKey(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	err = db.PingContext(ctxTimeout)
+	is.NoErr(err)
+
 	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
 	is.NoErr(err)
 
@@ -358,9 +389,6 @@ func TestDestination_Write_failedWrongPayloadKey(t *testing.T) {
 
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.Table]))
 	is.NoErr(err)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	dest := NewDestination()
 
