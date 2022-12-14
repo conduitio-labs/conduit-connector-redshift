@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	// envNameURL is a Redshift url environment name.
+	// envNameDSN is a Redshift dsn environment name.
 	envNameDSN = "REDSHIFT_DSN"
 	// pingTimeout is a database ping timeout.
 	pingTimeout = 10 * time.Second
