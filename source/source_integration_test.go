@@ -30,8 +30,12 @@ import (
 	"github.com/matryer/is"
 )
 
-// envNameURL is a Redshift url environment name.
-const envNameDSN = "REDSHIFT_DSN"
+const (
+	// envNameDSN is a Redshift dsn environment name.
+	envNameDSN = "REDSHIFT_DSN"
+	// pingTimeout is a database ping timeout.
+	pingTimeout = 10 * time.Second
+)
 
 func TestSource_Read_tableDoesNotExist(t *testing.T) {
 	var (
@@ -45,6 +49,12 @@ func TestSource_Read_tableDoesNotExist(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	err = db.PingContext(ctxTimeout)
+	is.NoErr(err)
 
 	src := NewSource()
 
@@ -68,6 +78,15 @@ func TestSource_Read_tableHasNoData(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	err = db.PingContext(ctxTimeout)
+	is.NoErr(err)
+
 	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col INTEGER, PRIMARY KEY (col));", cfg[config.Table]))
 	is.NoErr(err)
 
@@ -75,9 +94,6 @@ func TestSource_Read_tableHasNoData(t *testing.T) {
 		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.Table]))
 		is.NoErr(err)
 	}()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	src := NewSource()
 
@@ -106,6 +122,15 @@ func TestSource_Read_keyColumnsFromConfig(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	err = db.PingContext(ctxTimeout)
+	is.NoErr(err)
+
 	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
 	is.NoErr(err)
 
@@ -116,9 +141,6 @@ func TestSource_Read_keyColumnsFromConfig(t *testing.T) {
 
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.Table]))
 	is.NoErr(err)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	src := NewSource()
 
@@ -151,6 +173,15 @@ func TestSource_Read_keyColumnsFromTableMetadata(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	err = db.PingContext(ctxTimeout)
+	is.NoErr(err)
+
 	_, err = db.Exec(fmt.Sprintf(
 		"CREATE TABLE %s (col1 INTEGER, col2 INTEGER, col3 INTEGER, PRIMARY KEY (col1, col2, col3));",
 		cfg[config.Table]))
@@ -163,9 +194,6 @@ func TestSource_Read_keyColumnsFromTableMetadata(t *testing.T) {
 
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2, 3);", cfg[config.Table]))
 	is.NoErr(err)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	src := NewSource()
 
@@ -199,6 +227,15 @@ func TestSource_Read_keyColumnsFromOrderingColumn(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	err = db.PingContext(ctxTimeout)
+	is.NoErr(err)
+
 	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
 	is.NoErr(err)
 
@@ -209,9 +246,6 @@ func TestSource_Read_keyColumnsFromOrderingColumn(t *testing.T) {
 
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.Table]))
 	is.NoErr(err)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	src := NewSource()
 
@@ -268,6 +302,15 @@ func TestSource_Read_checkTypes(t *testing.T) {
 	db, err := sqlx.Open(driverName, cfg[config.DSN])
 	is.NoErr(err)
 	defer db.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	err = db.PingContext(ctxTimeout)
+	is.NoErr(err)
 
 	_, err = db.Exec(fmt.Sprintf(`CREATE TABLE %s
 	(
@@ -341,9 +384,6 @@ func TestSource_Read_checkTypes(t *testing.T) {
 		want.VarbyteType)
 	is.NoErr(err)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	src := NewSource()
 
 	err = src.Configure(ctx, cfg)
@@ -396,6 +436,15 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	err = db.PingContext(ctxTimeout)
+	is.NoErr(err)
+
 	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
 	is.NoErr(err)
 
@@ -407,9 +456,6 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 	// insert a row to be sure that this data will not be transferred to the destination
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.Table]))
 	is.NoErr(err)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	src := NewSource()
 
