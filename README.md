@@ -16,5 +16,5 @@ Run `make build`.
 
 ## Testing
 
-Run `make test` to run all unit and integration tests. To run the integration test, set the Amazon Redshift database URL
-to the environment variables as an `REDSHIFT_URL`.
+Run `make test` to run all unit and integration tests. To run the integration test, set the Amazon Redshift database DSN
+to the environment variables as an `REDSHIFT_DSN`.

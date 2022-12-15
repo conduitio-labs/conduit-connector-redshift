@@ -77,7 +77,7 @@ func TestParseSDKPosition(t *testing.T) {
 			},
 		},
 		{
-			name: "failure_required_url_and_table",
+			name: "failure_required_dsn_and_table",
 			in:   sdk.Position("invalid"),
 			err: errors.New("unmarshal sdk.Position into Position: " +
 				"invalid character 'i' looking for beginning of value"),
