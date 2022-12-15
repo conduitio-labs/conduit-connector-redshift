@@ -29,7 +29,7 @@ into CDC mode. In CDC mode, the connector will only detect new rows.
 
 The first time the connector starts, the snapshot mode is enabled and the last value of the `orderingColumn` is stored
 to the position, to know the boundary of this mode. The connector reads all rows of a table in batches, using a
-cursor-based pagination, limiting the rows by `batchSize` and ordering by `orderingColumn`. The connector stores the
+keyset pagination, limiting the rows by `batchSize` and ordering by `orderingColumn`. The connector stores the
 last processed element value of an `orderingColumn` in a position, so the snapshot process can be paused and resumed
 without losing data. Once all rows in that initial snapshot are read the connector switches into CDC mode.
 
@@ -47,8 +47,9 @@ limiting by `batchSize` and ordering by `orderingColumn`.
 | `dsn`            | [DSN](https://en.wikipedia.org/wiki/Data_source_name) to connect to Redshift.                                                                                                                   | **true** | `postgres://username:password@endpoint:5439/database` |
 | `table`          | Name of the table the connector must read from.                                                                                                                                                 | **true** | `table_name`                                          |
 | `orderingColumn` | Column name that the connector will use to order the rows. Keep in mind that the data will be sorted by this column, so the column must contain unique, consistent values suitable for sorting. | **true** | `id`                                                  |
+| `snapshot`       | Whether the connector will take a snapshot of the entire table before starting cdc mode. By default is `"true"`.                                                                                | false    | `false`                                               |
 | `keyColumns`     | Comma-separated list of column names to build the `sdk.Record.Key`. See more: [key handling](#key-handling).                                                                                    | false    | `id,name`                                             |
-| `batchSize`      | Size of rows batch. Min is 1 and max is 100000. The default is 1000.                                                                                                                            | false    | `100`                                                 |
+| `batchSize`      | Size of rows batch. Min is 1 and max is 100000. By default is `"1000"`.                                                                                                                         | false    | `100`                                                 |
 
 ### Key handling
 
