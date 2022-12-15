@@ -200,7 +200,7 @@ func TestParseCommon(t *testing.T) {
 			err: fmt.Errorf("validate common configuration: %w", excludesallErr(KeyColumns, excludeSpace)),
 		},
 		{
-			name: "failure_url_is_required",
+			name: "failure_dsn_is_required",
 			in: map[string]string{
 				Table: testValueTable,
 			},
@@ -214,7 +214,7 @@ func TestParseCommon(t *testing.T) {
 			err: fmt.Errorf("validate common configuration: %w", requiredErr(Table)),
 		},
 		{
-			name: "failure_url_and_table_are_required",
+			name: "failure_dsn_and_table_are_required",
 			in:   map[string]string{},
 			err: fmt.Errorf("validate common configuration: %w",
 				multierr.Combine(requiredErr(DSN), requiredErr(Table))),
