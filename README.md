@@ -48,12 +48,25 @@ limiting by `batchSize` and ordering by `orderingColumn`.
 | `table`          | Name of the table the connector must read from.                                                                                                                                                 | **true** | `table_name`                                          |
 | `orderingColumn` | Column name that the connector will use to order the rows. Keep in mind that the data will be sorted by this column, so the column must contain unique, consistent values suitable for sorting. | **true** | `id`                                                  |
 | `snapshot`       | Whether the connector will take a snapshot of the entire table before starting cdc mode. By default is `"true"`.                                                                                | false    | `false`                                               |
-| `keyColumns`     | Comma-separated list of column names to build the `sdk.Record.Key`. See more: [key handling](#key-handling).                                                                                    | false    | `id,name`                                             |
+| `keyColumns`     | Comma-separated list of column names to build the `sdk.Record.Key`. See more: [Source Key Handling](#source-key-handling).                                                                      | false    | `id,name`                                             |
 | `batchSize`      | Size of rows batch. Min is 1 and max is 100000. By default is `"1000"`.                                                                                                                         | false    | `100`                                                 |
 
-### Key handling
+### Source Key Handling
 
 The connector builds `sdk.Record.Key` as `sdk.StructuredData`. The keys of this field consist of elements of
 the `keyColumns` configuration field. If `keyColumns` is empty, the connector uses the primary keys of the specified
 table; otherwise, if the table has no primary keys, it uses the value of the `orderingKey` field. The values
 of `sdk.Record.Key` field are taken from `sdk.Payload.After` by the keys of this field.
+
+### Table Name
+
+For each record, the connector adds a `redshift.table` property to the metadata that contains the table name.
+
+## Known limitations
+
+Creating a Source or Destination connector will fail in the next cases:
+- connector does not have access to Redshift;
+- user does not have permission;
+- table does not exist.
+
+[Quotas and limits in Amazon Redshift](https://docs.aws.amazon.com/redshift/latest/mgmt/amazon-redshift-limits.html)
