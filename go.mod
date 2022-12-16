@@ -3,7 +3,7 @@ module github.com/conduitio-labs/conduit-connector-redshift
 go 1.19
 
 require (
-	github.com/conduitio/conduit-connector-sdk v0.3.0
+	github.com/conduitio/conduit-connector-sdk v0.4.0
 	github.com/go-playground/validator/v10 v10.11.1
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.0
@@ -11,11 +11,11 @@ require (
 	github.com/jackc/pgx/v5 v5.1.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/matryer/is v1.4.0
-	go.uber.org/multierr v1.8.0
+	go.uber.org/multierr v1.9.0
 )
 
 require (
-	github.com/conduitio/conduit-connector-protocol v0.3.0 // indirect
+	github.com/conduitio/conduit-connector-protocol v0.4.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
@@ -33,20 +33,21 @@ require (
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mitchellh/go-testing-interface v1.0.0 // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/oklog/run v1.0.0 // indirect
 	github.com/rs/zerolog v1.28.0 // indirect
 	github.com/stretchr/testify v1.8.1 // indirect
-	go.buf.build/grpc/go/conduitio/conduit-connector-protocol v1.3.3 // indirect
+	go.buf.build/grpc/go/conduitio/conduit-connector-protocol v1.4.5 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/goleak v1.2.0 // indirect
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90 // indirect
-	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
-	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
-	golang.org/x/sys v0.0.0-20220926163933-8cfa568d3c25 // indirect
-	golang.org/x/text v0.3.8 // indirect
+	golang.org/x/exp v0.0.0-20221114191408-850992195362 // indirect
+	golang.org/x/net v0.3.0 // indirect
+	golang.org/x/sys v0.3.0 // indirect
+	golang.org/x/text v0.5.0 // indirect
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9 // indirect
-	google.golang.org/genproto v0.0.0-20220617124728-180714bec0ad // indirect
-	google.golang.org/grpc v1.47.0 // indirect
-	google.golang.org/protobuf v1.28.0 // indirect
+	google.golang.org/genproto v0.0.0-20211104193956-4c6863e31247 // indirect
+	google.golang.org/grpc v1.50.1 // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637 // indirect
 )
