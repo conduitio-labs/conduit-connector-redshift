@@ -75,7 +75,7 @@ configuration parameters. It takes an `sdk.Record` and parses it into a valid SQ
 | `table`      | Name of the table the connector must read from.                                                                                                                       | **true** | `table_name`                                          |
 | `keyColumns` | Comma-separated list of column names to build the where clause in case if `sdk.Record.Key` is empty. See more: [Destination Key handling](#destination-key-handling). | false    | `id,name`                                             |
 
-#### Destination Key Handling
+### Destination Key Handling
 
 If `sdk.Record.Key` is empty, the connector takes data from `sdk.Record.Payload.After` by keys from the `keyColumns`
 field to build where clause of update operations.
