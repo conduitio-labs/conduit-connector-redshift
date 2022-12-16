@@ -58,7 +58,7 @@ func (s *Source) Parameters() map[string]sdk.Parameter {
 		config.Table: {
 			Default:     "",
 			Required:    true,
-			Description: "Name of the table that the connector should read.",
+			Description: "Name of a table, the connector must read from.",
 		},
 		config.OrderingColumn: {
 			Default:  "",
