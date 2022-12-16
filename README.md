@@ -62,6 +62,30 @@ of `sdk.Record.Key` field are taken from `sdk.Payload.After` by the keys of this
 
 For each record, the connector adds a `redshift.table` property to the metadata that contains the table name.
 
+## Destination
+
+The Redshift Destination Connector allows you to move data to a Redshift table with the specified `dsn` and `table`
+configuration parameters. It takes an `sdk.Record` and parses it into a valid SQL query.
+
+### Configuration Options
+
+| name         | description                                                                                                                                                           | required | example                                               |
+|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|-------------------------------------------------------|
+| `dsn`        | [DSN](https://en.wikipedia.org/wiki/Data_source_name) to connect to Redshift.                                                                                         | **true** | `postgres://username:password@endpoint:5439/database` |
+| `table`      | Name of the table the connector must read from.                                                                                                                       | **true** | `table_name`                                          |
+| `keyColumns` | Comma-separated list of column names to build the where clause in case if `sdk.Record.Key` is empty. See more: [Destination Key handling](#destination-key-handling). | false    | `id,name`                                             |
+
+#### Destination Key Handling
+
+If the `sdk.Record.Key` is empty, the connector takes data from `sdk.Record.Payload.After` by keys from the `keyColumns`
+field to build where clause of update operations.
+
+### Table Name
+
+If the record contains a `redshift.table` property in its metadata, it will work with this table, otherwise, it will
+fall back to use the `table` configured in the connector.
+
+
 ## Known limitations
 
 Creating a Source or Destination connector will fail in the next cases:
