@@ -77,14 +77,13 @@ configuration parameters. It takes an `sdk.Record` and parses it into a valid SQ
 
 #### Destination Key Handling
 
-If the `sdk.Record.Key` is empty, the connector takes data from `sdk.Record.Payload.After` by keys from the `keyColumns`
+If `sdk.Record.Key` is empty, the connector takes data from `sdk.Record.Payload.After` by keys from the `keyColumns`
 field to build where clause of update operations.
 
 ### Table Name
 
 If the record contains a `redshift.table` property in its metadata, it will work with this table, otherwise, it will
 fall back to use the `table` configured in the connector.
-
 
 ## Known limitations
 
