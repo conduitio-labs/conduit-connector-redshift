@@ -48,10 +48,10 @@ pagination, limiting by `batchSize` and ordering by `orderingColumn`.
 | `table`          | Name of a table, the connector must read from.                                                                                                                                                  | **true** | `table_name`                                          |
 | `orderingColumn` | Column name that the connector will use to order the rows. Keep in mind that the data will be sorted by this column, so the column must contain unique, consistent values suitable for sorting. | **true** | `id`                                                  |
 | `snapshot`       | Whether the connector will take a snapshot of the entire table before starting cdc mode. By default is `"true"`.                                                                                | false    | `false`                                               |
-| `keyColumns`     | Comma-separated list of column names to build the `sdk.Record.Key`. See more: [Source Key Handling](#key-handling).                                                                             | false    | `id,name`                                             |
+| `keyColumns`     | Comma-separated list of column names to build the `sdk.Record.Key`. See more: [Key handling](#key-handling).                                                                                    | false    | `id,name`                                             |
 | `batchSize`      | Size of rows batch. Min is 1 and max is 100000. By default is `"1000"`.                                                                                                                         | false    | `100`                                                 |
 
-### Key Handling
+### Key handling
 
 The connector builds `sdk.Record.Key` as `sdk.StructuredData`. The keys of this field consist of elements of
 the `keyColumns` configuration field. If `keyColumns` is empty, the connector uses the primary keys of the specified
