@@ -69,13 +69,13 @@ configuration parameters. It takes an `sdk.Record` and parses it into a valid SQ
 
 ### Configuration Options
 
-| name         | description                                                                                                                                                           | required | example                                               |
-|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|-------------------------------------------------------|
-| `dsn`        | [DSN](https://en.wikipedia.org/wiki/Data_source_name) to connect to Redshift.                                                                                         | **true** | `postgres://username:password@endpoint:5439/database` |
-| `table`      | Name of the table the connector must read from.                                                                                                                       | **true** | `table_name`                                          |
-| `keyColumns` | Comma-separated list of column names to build the where clause in case if `sdk.Record.Key` is empty. See more: [Destination Key handling](#destination-key-handling). | false    | `id,name`                                             |
+| name         | description                                                                                                                                                 | required | example                                               |
+|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|-------------------------------------------------------|
+| `dsn`        | [DSN](https://en.wikipedia.org/wiki/Data_source_name) to connect to Redshift.                                                                               | **true** | `postgres://username:password@endpoint:5439/database` |
+| `table`      | Name of the table the connector must read from.                                                                                                             | **true** | `table_name`                                          |
+| `keyColumns` | Comma-separated list of column names to build the where clause in case if `sdk.Record.Key` is empty. See more: [Key handling](#key-handling-1).             | false    | `id,name`                                             |
 
-### Destination Key Handling
+### Key handling
 
 If `sdk.Record.Key` is empty, the connector takes data from `sdk.Record.Payload.After` by keys from the `keyColumns`
 field to build where clause of update operations.
