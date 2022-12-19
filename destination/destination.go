@@ -62,9 +62,10 @@ func (d *Destination) Parameters() map[string]sdk.Parameter {
 			Description: "Name of the table that the connector should read.",
 		},
 		config.KeyColumns: {
-			Default:     "",
-			Required:    false,
-			Description: "Comma-separated list of column names to build the sdk.Record.Key in case it is empty.",
+			Default:  "",
+			Required: false,
+			Description: "Comma-separated list of column names to build the where clause " +
+				"in case if sdk.Record.Key is empty.",
 		},
 	}
 }
