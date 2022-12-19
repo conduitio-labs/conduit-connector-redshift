@@ -16,7 +16,9 @@ package columntypes
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -152,6 +154,21 @@ func ConvertStructureData(
 	for key, value := range data {
 		if value == nil {
 			result[key] = nil
+
+			continue
+		}
+
+		// Redshift does not support map or slice types,
+		// so it'll be stored as marshaled strings.
+		//nolint:exhaustive // there is no need to check all types
+		switch reflect.TypeOf(value).Kind() {
+		case reflect.Map, reflect.Slice:
+			bs, err := json.Marshal(value)
+			if err != nil {
+				return nil, fmt.Errorf("marshal map or slice type: %w", err)
+			}
+
+			result[key] = string(bs)
 
 			continue
 		}

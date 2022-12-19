@@ -42,22 +42,24 @@ const (
 func TestDestination_Write_checkTypes(t *testing.T) {
 	//nolint:tagliatelle // Redshift does not support uppercase letters
 	type dataRow struct {
-		SmallIntType    int16     `json:"small_int_type"`
-		IntegerType     int32     `json:"integer_type"`
-		BigIntType      int64     `json:"big_int_type"`
-		DecimalType     float64   `json:"decimal_type"`
-		RealType        float32   `json:"real_type"`
-		DoubleType      float64   `json:"double_type"`
-		FloatType       float64   `json:"float_type"`
-		BooleanType     bool      `json:"boolean_type"`
-		CharType        string    `json:"char_type"`
-		VarcharType     string    `json:"varchar_type"`
-		DateType        time.Time `json:"date_type"`
-		TimestampType   time.Time `json:"timestamp_type"`
-		TimestampTzType time.Time `json:"timestamp_tz_type"`
-		TimeType        time.Time `json:"time_type"`
-		TimeTzType      time.Time `json:"time_tz_type"`
-		VarbyteType     string    `json:"varbyte_type"`
+		SmallIntType    int16          `json:"small_int_type"`
+		IntegerType     int32          `json:"integer_type"`
+		BigIntType      int64          `json:"big_int_type"`
+		DecimalType     float64        `json:"decimal_type"`
+		RealType        float32        `json:"real_type"`
+		DoubleType      float64        `json:"double_type"`
+		FloatType       float64        `json:"float_type"`
+		BooleanType     bool           `json:"boolean_type"`
+		CharType        string         `json:"char_type"`
+		VarcharType     string         `json:"varchar_type"`
+		DateType        time.Time      `json:"date_type"`
+		TimestampType   time.Time      `json:"timestamp_type"`
+		TimestampTzType time.Time      `json:"timestamp_tz_type"`
+		TimeType        time.Time      `json:"time_type"`
+		TimeTzType      time.Time      `json:"time_tz_type"`
+		VarbyteType     string         `json:"varbyte_type"`
+		MapType         map[string]any `json:"map_type"`
+		SliceType       []any          `json:"slice_type"`
 	}
 
 	var (
@@ -95,7 +97,9 @@ func TestDestination_Write_checkTypes(t *testing.T) {
 		timestamp_tz_type timestamptz,
 		time_type         time,
 		time_tz_type      timetz,
-		varbyte_type      varbyte
+		varbyte_type      varbyte,
+		map_type      	  varchar,
+		slice_type        varchar
 	);`, cfg[config.Table]))
 	is.NoErr(err)
 
@@ -128,6 +132,13 @@ func TestDestination_Write_checkTypes(t *testing.T) {
 		TimeType:        time.Date(2022, 2, 24, 23, 30, 0, 0, time.UTC),
 		TimeTzType:      time.Date(2022, 2, 24, 23, 45, 0, 0, locationKyiv),
 		VarbyteType:     varbyteTypeData,
+		MapType: map[string]any{
+			"k1": 123,
+			"k2": 1.23,
+			"k3": "test",
+			"k4": true,
+		},
+		SliceType: []any{123, 1.23, "test", true},
 	}
 
 	var payload sdk.StructuredData
@@ -165,12 +176,15 @@ func TestDestination_Write_checkTypes(t *testing.T) {
 		got             dataRow
 		timeTypeStr     string
 		timeTzTypeStr   string
+		mapTypeStr      string
+		sliceTypeStr    string
 		timestampTzType time.Time
 	)
 
 	err = rows.Scan(&got.SmallIntType, &got.IntegerType, &got.BigIntType, &got.DecimalType, &got.RealType,
 		&got.DoubleType, &got.FloatType, &got.BooleanType, &got.CharType, &got.VarcharType, &got.DateType,
-		&got.TimestampType, &timestampTzType, &timeTypeStr, &timeTzTypeStr, &got.VarbyteType)
+		&got.TimestampType, &timestampTzType, &timeTypeStr, &timeTzTypeStr, &got.VarbyteType, &mapTypeStr,
+		&sliceTypeStr)
 	is.NoErr(err)
 
 	// update location
@@ -189,6 +203,14 @@ func TestDestination_Write_checkTypes(t *testing.T) {
 	is.NoErr(err)
 	got.TimeTzType = time.Date(record.TimeTzType.Year(), record.TimeTzType.Month(), record.TimeTzType.Day(),
 		timeTzType.Hour(), timeTzType.Minute(), timeTzType.Second(), 0, time.UTC).In(locationKyiv)
+
+	// unmarshal mapType
+	err = json.Unmarshal([]byte(mapTypeStr), &got.MapType)
+	is.NoErr(err)
+
+	// unmarshal sliceType
+	err = json.Unmarshal([]byte(sliceTypeStr), &got.SliceType)
+	is.NoErr(err)
 
 	// decode VarbyteType
 	varbyteTypeBytes, err := hex.DecodeString(got.VarbyteType)
