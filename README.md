@@ -55,7 +55,7 @@ pagination, limiting by `batchSize` and ordering by `orderingColumn`.
 
 The connector builds `sdk.Record.Key` as `sdk.StructuredData`. The keys of this field consist of elements of
 the `keyColumns` configuration field. If `keyColumns` is empty, the connector uses the primary keys of the specified
-table; otherwise, if the table has no primary keys, it uses the value of the `orderingKey` field. The values
+table; otherwise, if the table has no primary keys, it uses the value of the `orderingColumn` field. The values
 of `sdk.Record.Key` field are taken from `sdk.Payload.After` by the keys of this field.
 
 ### Table Name
