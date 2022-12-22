@@ -15,6 +15,11 @@ linters-settings:
     template-path: '.golangci.goheader.template'
   lll:
     line-length: 120
+  forbidigo:
+    forbid:
+      - '^print.*'
+      - 'fmt\.Print.*'
+    exclude_godoc_examples: false
 
 linters:
   # please, do not use `enable-all`: it's deprecated and will be removed soon.
@@ -38,6 +43,7 @@ linters:
     - gocritic
     - gocyclo
     - godot
+    - godox
     - gofmt
     - gofumpt
     - goheader
@@ -91,7 +97,6 @@ linters:
     # - dupl
     # - gochecknoglobals
     # - gocognit
-    # - godox
     # - goerr113
     # - maligned
     # - nestif
