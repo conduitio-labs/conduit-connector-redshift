@@ -2,7 +2,7 @@ module github.com/conduitio-labs/conduit-connector-redshift
 
 go 1.19
 
-require github.com/conduitio/conduit-connector-sdk v0.4.0
+require github.com/conduitio/conduit-connector-sdk v0.4.3
 
 require (
 	github.com/conduitio/conduit-connector-protocol v0.4.0 // indirect
