@@ -3,7 +3,7 @@ module github.com/conduitio-labs/conduit-connector-redshift
 go 1.19
 
 require (
-	github.com/conduitio/conduit-connector-sdk v0.4.0
+	github.com/conduitio/conduit-connector-sdk v0.4.3
 	github.com/go-playground/validator/v10 v10.11.1
 	github.com/golang/mock v1.6.0
 	github.com/huandu/go-sqlbuilder v1.17.0
