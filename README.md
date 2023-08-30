@@ -7,8 +7,8 @@ and a Destination Amazon Redshift connectors.
 
 ## Prerequisites
 
-- [Go](https://go.dev/) 1.19
-- (optional) [golangci-lint](https://github.com/golangci/golangci-lint) 1.50.1
+- [Go](https://go.dev/) 1.20
+- (optional) [golangci-lint](https://github.com/golangci/golangci-lint) 1.51.2
 
 ## How to build it
 
@@ -71,3 +71,4 @@ Creating a Source or Destination connector will fail in the next cases:
 - table does not exist.
 
 [Quotas and limits in Amazon Redshift](https://docs.aws.amazon.com/redshift/latest/mgmt/amazon-redshift-limits.html)
+
