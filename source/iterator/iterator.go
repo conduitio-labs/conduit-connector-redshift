@@ -315,6 +315,7 @@ func (iter *Iterator) latestSnapshotValue(ctx context.Context) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("execute select latest snapshot value query %q: %w", query, err)
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		if err = rows.Scan(&latestSnapshotValue); err != nil {
