@@ -31,12 +31,11 @@ type Position struct {
 
 // ParseSDKPosition parses sdk.Position and returns Position.
 func ParseSDKPosition(position sdk.Position) (*Position, error) {
-	var pos Position
-
 	if position == nil {
-		return &pos, nil
+		return nil, nil
 	}
 
+	var pos Position
 	if err := json.Unmarshal(position, &pos); err != nil {
 		return nil, fmt.Errorf("unmarshal sdk.Position into Position: %w", err)
 	}

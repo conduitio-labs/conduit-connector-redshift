@@ -44,22 +44,20 @@ type Iterator struct {
 	rows     *sqlx.Rows
 	position *Position
 
-	// table is a table name.
+	// table is a table name
 	table string
-	// keyColumns is a name of the column that iterator will use for setting key in record.
+	// keyColumns are table column which the iterator will use to create a record's key
 	keyColumns []string
-	// orderingColumn is a name of the column that iterator will use for sorting data.
+	// orderingColumn is the name of the column that iterator will use for sorting data
 	orderingColumn string
-	// batchSize is a size of rows batch.
+	// batchSize is the size of a batch retrieved from Redshift
 	batchSize int
-	// columnTypes is a map with all column types.
+	// columnTypes is a mapping from column names to their respective types
 	columnTypes map[string]string
 }
 
 // New creates a new instance of the iterator.
 func New(ctx context.Context, driverName string, pos *Position, config config.Source) (*Iterator, error) {
-	var err error
-
 	iterator := &Iterator{
 		position:       pos,
 		table:          config.Table,
@@ -68,15 +66,16 @@ func New(ctx context.Context, driverName string, pos *Position, config config.So
 		batchSize:      config.BatchSize,
 	}
 
+	var err error
 	iterator.db, err = sqlx.Open(driverName, config.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("open db connection: %w", err)
 	}
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	pingCtx, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 
-	err = iterator.db.PingContext(ctxTimeout)
+	err = iterator.db.PingContext(pingCtx)
 	if err != nil {
 		return nil, fmt.Errorf("ping db with timeout: %w", err)
 	}
@@ -106,8 +105,12 @@ func New(ctx context.Context, driverName string, pos *Position, config config.So
 		return nil, fmt.Errorf("populate key columns: %w", err)
 	}
 
-	iterator.columnTypes, err = columntypes.GetColumnTypes(ctx,
-		iterator.db, iterator.table, uri.Query().Get(keySearchPath))
+	iterator.columnTypes, err = columntypes.GetColumnTypes(
+		ctx,
+		iterator.db,
+		iterator.table,
+		uri.Query().Get(keySearchPath),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("get column types: %w", err)
 	}
