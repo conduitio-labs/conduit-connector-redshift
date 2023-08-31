@@ -17,7 +17,6 @@ package iterator
 import (
 	"errors"
 	"github.com/matryer/is"
-	"reflect"
 	"testing"
 
 	sdk "github.com/conduitio/conduit-connector-sdk"
@@ -154,17 +153,11 @@ func TestMarshal(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			is := is.New(t)
 
 			got, err := tt.in.marshal()
-			if err != nil {
-				t.Errorf("unexpected error: %s", err.Error())
-
-				return
-			}
-
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("got: %v, want: %v", string(got), string(tt.want))
-			}
+			is.NoErr(err)
+			is.Equal(got, tt.want)
 		})
 	}
 }
