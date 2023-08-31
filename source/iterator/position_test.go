@@ -16,6 +16,7 @@ package iterator
 
 import (
 	"errors"
+	"github.com/matryer/is"
 	"reflect"
 	"testing"
 
@@ -26,15 +27,15 @@ func TestParseSDKPosition(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name string
-		in   sdk.Position
-		want Position
-		err  error
+		name    string
+		in      sdk.Position
+		wantPos Position
+		wantErr error
 	}{
 		{
-			name: "success_position_is_nil",
-			in:   nil,
-			want: Position{},
+			name:    "success_position_is_nil",
+			in:      nil,
+			wantPos: Position{},
 		},
 		{
 			name: "success_float64_fields",
@@ -42,7 +43,7 @@ func TestParseSDKPosition(t *testing.T) {
 			   "lastProcessedValue":10,
 			   "latestSnapshotValue":30
 			}`),
-			want: Position{
+			wantPos: Position{
 				LastProcessedValue:  float64(10),
 				LatestSnapshotValue: float64(30),
 			},
@@ -53,7 +54,7 @@ func TestParseSDKPosition(t *testing.T) {
 			   "lastProcessedValue":"abc",
 			   "latestSnapshotValue":"def"
 			}`),
-			want: Position{
+			wantPos: Position{
 				LastProcessedValue:  "abc",
 				LatestSnapshotValue: "def",
 			},
@@ -63,7 +64,7 @@ func TestParseSDKPosition(t *testing.T) {
 			in: sdk.Position(`{
 			   "lastProcessedValue":10
 			}`),
-			want: Position{
+			wantPos: Position{
 				LastProcessedValue: float64(10),
 			},
 		},
@@ -72,14 +73,14 @@ func TestParseSDKPosition(t *testing.T) {
 			in: sdk.Position(`{
 			   "latestSnapshotValue":30
 			}`),
-			want: Position{
+			wantPos: Position{
 				LatestSnapshotValue: float64(30),
 			},
 		},
 		{
 			name: "failure_required_dsn_and_table",
 			in:   sdk.Position("invalid"),
-			err: errors.New("unmarshal sdk.Position into Position: " +
+			wantErr: errors.New("unmarshal sdk.Position into Position: " +
 				"invalid character 'i' looking for beginning of value"),
 		},
 	}
@@ -89,26 +90,15 @@ func TestParseSDKPosition(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			is := is.New(t)
 
 			got, err := ParseSDKPosition(tt.in)
-			if err != nil {
-				if tt.err == nil {
-					t.Errorf("unexpected error: %s", err.Error())
-
-					return
-				}
-
-				if err.Error() != tt.err.Error() {
-					t.Errorf("unexpected error, got: %s, want: %s", err.Error(), tt.err.Error())
-
-					return
-				}
-
-				return
-			}
-
-			if !reflect.DeepEqual(*got, tt.want) {
-				t.Errorf("got: %v, want: %v", *got, tt.want)
+			if tt.wantErr == nil {
+				is.NoErr(err)
+				is.Equal(*got, tt.wantPos)
+			} else {
+				is.True(err != nil)
+				is.Equal(err.Error(), tt.wantErr.Error())
 			}
 		})
 	}
