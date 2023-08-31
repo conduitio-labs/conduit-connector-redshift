@@ -301,7 +301,6 @@ func (iter *Iterator) populateKeyColumns(ctx context.Context, schema string) err
 func (iter *Iterator) latestSnapshotValue(ctx context.Context) (any, error) {
 	var latestSnapshotValue any
 
-	// todo maybe use the MAX function
 	query := sqlbuilder.PostgreSQL.NewSelectBuilder().
 		Select(iter.orderingColumn).
 		From(iter.table).
