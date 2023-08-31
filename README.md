@@ -21,11 +21,11 @@ to the environment variables as an `REDSHIFT_DSN`.
 
 ## Source
 
-The Redshift Source Connector allows you to move data from a Redshift table with the specified `dsn` and `table`
-configuration parameters. Upon starting, the Source takes a snapshot of a given table in the database, then switches
-into CDC mode. In CDC mode, the connector will only detect new rows.
+Conduit's Redshift source connector allows you to move data from a Redshift table with the specified `dsn` and `table`
+configuration parameters. Upon starting, the source connector takes a snapshot of a given table in the database, then 
+switches into change data capture (CDC) mode. In CDC mode, the connector will only detect new rows.
 
-### Snapshot Capture
+### Snapshots
 
 At the first launch of the connector, the snapshot mode is enabled and the last value of the `orderingColumn` is stored
 to the position, to know the boundary of this mode. The connector reads all rows of a table in batches, using a
@@ -42,14 +42,14 @@ pagination, limiting by `batchSize` and ordering by `orderingColumn`.
 
 ### Configuration
 
-| name             | description                                                                                                                                                                                     | required | example                                               |
-|------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|-------------------------------------------------------|
-| `dsn`            | [DSN](https://en.wikipedia.org/wiki/Data_source_name) to connect to Redshift.                                                                                                                   | **true** | `postgres://username:password@endpoint:5439/database` |
-| `table`          | Name of a table, the connector must read from.                                                                                                                                                  | **true** | `table_name`                                          |
-| `orderingColumn` | Column name that the connector will use to order the rows. Keep in mind that the data will be sorted by this column, so the column must contain unique, consistent values suitable for sorting. | **true** | `id`                                                  |
-| `snapshot`       | Whether the connector will take a snapshot of the entire table before starting cdc mode. By default is `"true"`.                                                                                | false    | `false`                                               |
-| `keyColumns`     | Comma-separated list of column names to build the `sdk.Record.Key`. See more: [Key handling](#key-handling).                                                                                    | false    | `id,name`                                             |
-| `batchSize`      | Size of rows batch. Min is 1 and max is 100000. By default is `"1000"`.                                                                                                                         | false    | `100`                                                 |
+| name             | description                                                                                                                                                                | required | example                                               | default value |
+|------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|-------------------------------------------------------|---------------|
+| `dsn`            | [DSN](https://en.wikipedia.org/wiki/Data_source_name) to connect to Redshift.                                                                                              | **true** | `postgres://username:password@endpoint:5439/database` |               |
+| `table`          | Name of the table from which the connector reads from.                                                                                                                     | **true** | `table_name`                                          |               |
+| `orderingColumn` | Column used to order the rows. <br /> Keep in mind that the data will be sorted by this column, so the column must contain unique, consistent values suitable for sorting. | **true** | `id`                                                  |               |
+| `snapshot`       | Whether the connector will take a snapshot of the entire table before starting cdc mode.                                                                                   | false    | `false`                                               | "true"        |
+| `keyColumns`     | Comma-separated list of column names to build the `sdk.Record.Key`. See more: [Key handling](#key-handling).                                                               | false    | `id,name`                                             |               |
+| `batchSize`      | Size of rows batch. Min is 1 and max is 100000.                                                                                                                            | false    | `100`                                                 | "1000"        |
 
 ### Key handling
 
@@ -70,5 +70,6 @@ Creating a Source or Destination connector will fail in the next cases:
 - user does not have permission;
 - table does not exist.
 
-[Quotas and limits in Amazon Redshift](https://docs.aws.amazon.com/redshift/latest/mgmt/amazon-redshift-limits.html)
+## Useful resources
+* [Quotas and limits in Amazon Redshift](https://docs.aws.amazon.com/redshift/latest/mgmt/amazon-redshift-limits.html)
 

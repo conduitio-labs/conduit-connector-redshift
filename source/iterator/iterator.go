@@ -40,6 +40,7 @@ const (
 
 // Iterator is an implementation of an iterator for Amazon Redshift.
 type Iterator struct {
+	// todo replace this with an interface, so it can be mocked and tested
 	db       *sqlx.DB
 	rows     *sqlx.Rows
 	position *Position
@@ -137,6 +138,8 @@ func (iter *Iterator) HasNext(ctx context.Context) (bool, error) {
 		return true, nil
 	}
 
+	// At this point, there are no more rows to load
+	// so if we are in snapshot mode, we can switch to CDC
 	if iter.position.LatestSnapshotValue != nil {
 		// switch to CDC mode
 		iter.position.LastProcessedValue = iter.position.LatestSnapshotValue
@@ -190,9 +193,9 @@ func (iter *Iterator) Next(_ context.Context) (sdk.Record, error) {
 	// set the value from iter.orderingColumn column you chose
 	position.LastProcessedValue = transformedRow[iter.orderingColumn]
 
-	convertedPosition, err := position.marshal()
+	sdkPosition, err := position.marshal()
 	if err != nil {
-		return sdk.Record{}, fmt.Errorf("convert position :%w", err)
+		return sdk.Record{}, fmt.Errorf("failed converting to SDK position :%w", err)
 	}
 
 	iter.position = &position
@@ -203,10 +206,10 @@ func (iter *Iterator) Next(_ context.Context) (sdk.Record, error) {
 	metadata.SetCreatedAt(time.Now().UTC())
 
 	if position.LatestSnapshotValue != nil {
-		return sdk.Util.Source.NewRecordSnapshot(convertedPosition, metadata, key, sdk.RawData(rowBytes)), nil
+		return sdk.Util.Source.NewRecordSnapshot(sdkPosition, metadata, key, sdk.RawData(rowBytes)), nil
 	}
 
-	return sdk.Util.Source.NewRecordCreate(convertedPosition, metadata, key, sdk.RawData(rowBytes)), nil
+	return sdk.Util.Source.NewRecordCreate(sdkPosition, metadata, key, sdk.RawData(rowBytes)), nil
 }
 
 // Stop stops iterators and closes database connection.
@@ -267,8 +270,11 @@ func (iter *Iterator) populateKeyColumns(ctx context.Context, schema string) err
 	sb := sqlbuilder.PostgreSQL.NewSelectBuilder().
 		Select("kcu.column_name").
 		From("information_schema.table_constraints tco").
-		Join("information_schema.key_column_usage kcu", "kcu.constraint_name = tco.constraint_name "+
-			"AND kcu.constraint_schema = tco.constraint_schema AND kcu.constraint_name = tco.constraint_name").
+		Join(
+			"information_schema.key_column_usage kcu",
+			"kcu.constraint_name = tco.constraint_name "+
+				"AND kcu.constraint_schema = tco.constraint_schema AND kcu.constraint_name = tco.constraint_name",
+		).
 		Where("tco.constraint_type = 'PRIMARY KEY'")
 
 	sb.Where(sb.Equal("kcu.table_name", iter.table))
@@ -294,11 +300,9 @@ func (iter *Iterator) populateKeyColumns(ctx context.Context, schema string) err
 		iter.keyColumns = append(iter.keyColumns, columnName)
 	}
 
-	if len(iter.keyColumns) != 0 {
-		return nil
+	if len(iter.keyColumns) == 0 {
+		iter.keyColumns = []string{iter.orderingColumn}
 	}
-
-	iter.keyColumns = []string{iter.orderingColumn}
 
 	return nil
 }
@@ -307,6 +311,7 @@ func (iter *Iterator) populateKeyColumns(ctx context.Context, schema string) err
 func (iter *Iterator) latestSnapshotValue(ctx context.Context) (any, error) {
 	var latestSnapshotValue any
 
+	// todo maybe use the MAX function
 	query := sqlbuilder.PostgreSQL.NewSelectBuilder().
 		Select(iter.orderingColumn).
 		From(iter.table).
