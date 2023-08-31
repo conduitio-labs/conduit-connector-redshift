@@ -16,8 +16,9 @@ package config
 
 import (
 	"fmt"
-	"github.com/matryer/is"
 	"testing"
+
+	"github.com/matryer/is"
 )
 
 func TestParseSource(t *testing.T) {

@@ -40,7 +40,6 @@ const (
 
 // Iterator is an implementation of an iterator for Amazon Redshift.
 type Iterator struct {
-	// todo replace this with an interface, so it can be mocked and tested
 	db       *sqlx.DB
 	rows     *sqlx.Rows
 	position *Position
@@ -67,18 +66,9 @@ func New(ctx context.Context, driverName string, pos *Position, config config.So
 		batchSize:      config.BatchSize,
 	}
 
-	var err error
-	iterator.db, err = sqlx.Open(driverName, config.DSN)
+	err := iterator.openDB(ctx, driverName)
 	if err != nil {
-		return nil, fmt.Errorf("open db connection: %w", err)
-	}
-
-	pingCtx, cancel := context.WithTimeout(ctx, pingTimeout)
-	defer cancel()
-
-	err = iterator.db.PingContext(pingCtx)
-	if err != nil {
-		return nil, fmt.Errorf("ping db with timeout: %w", err)
+		return nil, fmt.Errorf("open db: %w", err)
 	}
 
 	if iterator.position.LastProcessedValue == nil {
@@ -332,4 +322,22 @@ func (iter *Iterator) latestSnapshotValue(ctx context.Context) (any, error) {
 	}
 
 	return latestSnapshotValue, nil
+}
+
+func (iter *Iterator) openDB(ctx context.Context, driverName string) error {
+	var err error
+	iter.db, err = sqlx.Open(driverName, config.DSN)
+	if err != nil {
+		return fmt.Errorf("open db connection: %w", err)
+	}
+
+	pingCtx, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	err = iter.db.PingContext(pingCtx)
+	if err != nil {
+		return fmt.Errorf("ping db with timeout: %w", err)
+	}
+
+	return nil
 }

@@ -16,8 +16,9 @@ package iterator
 
 import (
 	"errors"
-	"github.com/matryer/is"
 	"testing"
+
+	"github.com/matryer/is"
 
 	sdk "github.com/conduitio/conduit-connector-sdk"
 )
