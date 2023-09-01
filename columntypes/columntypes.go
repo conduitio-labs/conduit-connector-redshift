@@ -70,6 +70,7 @@ func GetColumnTypes(ctx context.Context, db *sqlx.DB, table, schema string) (map
 	if err != nil {
 		return nil, fmt.Errorf("select column types %q, %v: %w", query, args, err)
 	}
+	defer rows.Close()
 
 	columnTypes := make(map[string]string)
 	for rows.Next() {

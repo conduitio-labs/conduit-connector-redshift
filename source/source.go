@@ -51,34 +51,43 @@ func NewSource() sdk.Source {
 func (s *Source) Parameters() map[string]sdk.Parameter {
 	return map[string]sdk.Parameter{
 		config.DSN: {
-			Default:     "",
-			Required:    true,
+			Default: "",
+			Validations: []sdk.Validation{
+				sdk.ValidationRequired{},
+			},
 			Description: "Data source name to connect to the Amazon Redshift.",
 		},
 		config.Table: {
-			Default:     "",
-			Required:    true,
+			Default: "",
+			Validations: []sdk.Validation{
+				sdk.ValidationRequired{},
+			},
 			Description: "Name of a table, the connector must read from.",
 		},
 		config.OrderingColumn: {
-			Default:  "",
-			Required: true,
+			Default: "",
+			Validations: []sdk.Validation{
+				sdk.ValidationRequired{},
+			},
 			Description: "Column name that the connector will use for ordering rows. Column must contain unique " +
 				"values and suitable for sorting, otherwise the snapshot won't work correctly.",
 		},
 		config.Snapshot: {
 			Default:     "true",
-			Required:    false,
 			Description: "Whether the connector will take a snapshot of the entire table before starting cdc mode.",
 		},
 		config.KeyColumns: {
-			Default:     "",
-			Required:    false,
+			Default: "",
+			Validations: []sdk.Validation{
+				sdk.ValidationRequired{},
+			},
 			Description: "Comma-separated list of column names to build the sdk.Record.Key.",
 		},
 		config.BatchSize: {
-			Default:     "1000",
-			Required:    false,
+			Default: "1000",
+			Validations: []sdk.Validation{
+				sdk.ValidationRequired{},
+			},
 			Description: "Size of rows batch. Min is 1 and max is 100000. The default is 1000.",
 		},
 	}
@@ -139,7 +148,9 @@ func (s *Source) Read(ctx context.Context) (sdk.Record, error) {
 
 // Ack logs the debug event with the position.
 func (s *Source) Ack(ctx context.Context, position sdk.Position) error {
-	sdk.Logger(ctx).Debug().Str("position", string(position)).Msg("got ack")
+	sdk.Logger(ctx).Trace().
+		Str("position", string(position)).
+		Msg("got ack")
 
 	return nil
 }

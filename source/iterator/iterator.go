@@ -44,22 +44,20 @@ type Iterator struct {
 	rows     *sqlx.Rows
 	position *Position
 
-	// table is a table name.
+	// table is a table name
 	table string
-	// keyColumns is a name of the column that iterator will use for setting key in record.
+	// keyColumns are table column which the iterator will use to create a record's key
 	keyColumns []string
-	// orderingColumn is a name of the column that iterator will use for sorting data.
+	// orderingColumn is the name of the column that iterator will use for sorting data
 	orderingColumn string
-	// batchSize is a size of rows batch.
+	// batchSize is the size of a batch retrieved from Redshift
 	batchSize int
-	// columnTypes is a map with all column types.
+	// columnTypes is a mapping from column names to their respective types
 	columnTypes map[string]string
 }
 
 // New creates a new instance of the iterator.
 func New(ctx context.Context, driverName string, pos *Position, config config.Source) (*Iterator, error) {
-	var err error
-
 	iterator := &Iterator{
 		position:       pos,
 		table:          config.Table,
@@ -68,17 +66,9 @@ func New(ctx context.Context, driverName string, pos *Position, config config.So
 		batchSize:      config.BatchSize,
 	}
 
-	iterator.db, err = sqlx.Open(driverName, config.DSN)
+	err := iterator.openDB(ctx, driverName)
 	if err != nil {
-		return nil, fmt.Errorf("open db connection: %w", err)
-	}
-
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
-	defer cancel()
-
-	err = iterator.db.PingContext(ctxTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("ping db with timeout: %w", err)
+		return nil, fmt.Errorf("open db: %w", err)
 	}
 
 	if iterator.position.LastProcessedValue == nil {
@@ -106,8 +96,12 @@ func New(ctx context.Context, driverName string, pos *Position, config config.So
 		return nil, fmt.Errorf("populate key columns: %w", err)
 	}
 
-	iterator.columnTypes, err = columntypes.GetColumnTypes(ctx,
-		iterator.db, iterator.table, uri.Query().Get(keySearchPath))
+	iterator.columnTypes, err = columntypes.GetColumnTypes(
+		ctx,
+		iterator.db,
+		iterator.table,
+		uri.Query().Get(keySearchPath),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("get column types: %w", err)
 	}
@@ -134,6 +128,8 @@ func (iter *Iterator) HasNext(ctx context.Context) (bool, error) {
 		return true, nil
 	}
 
+	// At this point, there are no more rows to load
+	// so if we are in snapshot mode, we can switch to CDC
 	if iter.position.LatestSnapshotValue != nil {
 		// switch to CDC mode
 		iter.position.LastProcessedValue = iter.position.LatestSnapshotValue
@@ -187,9 +183,9 @@ func (iter *Iterator) Next(_ context.Context) (sdk.Record, error) {
 	// set the value from iter.orderingColumn column you chose
 	position.LastProcessedValue = transformedRow[iter.orderingColumn]
 
-	convertedPosition, err := position.marshal()
+	sdkPosition, err := position.marshal()
 	if err != nil {
-		return sdk.Record{}, fmt.Errorf("convert position :%w", err)
+		return sdk.Record{}, fmt.Errorf("failed converting to SDK position :%w", err)
 	}
 
 	iter.position = &position
@@ -200,10 +196,10 @@ func (iter *Iterator) Next(_ context.Context) (sdk.Record, error) {
 	metadata.SetCreatedAt(time.Now().UTC())
 
 	if position.LatestSnapshotValue != nil {
-		return sdk.Util.Source.NewRecordSnapshot(convertedPosition, metadata, key, sdk.RawData(rowBytes)), nil
+		return sdk.Util.Source.NewRecordSnapshot(sdkPosition, metadata, key, sdk.RawData(rowBytes)), nil
 	}
 
-	return sdk.Util.Source.NewRecordCreate(convertedPosition, metadata, key, sdk.RawData(rowBytes)), nil
+	return sdk.Util.Source.NewRecordCreate(sdkPosition, metadata, key, sdk.RawData(rowBytes)), nil
 }
 
 // Stop stops iterators and closes database connection.
@@ -264,8 +260,11 @@ func (iter *Iterator) populateKeyColumns(ctx context.Context, schema string) err
 	sb := sqlbuilder.PostgreSQL.NewSelectBuilder().
 		Select("kcu.column_name").
 		From("information_schema.table_constraints tco").
-		Join("information_schema.key_column_usage kcu", "kcu.constraint_name = tco.constraint_name "+
-			"AND kcu.constraint_schema = tco.constraint_schema AND kcu.constraint_name = tco.constraint_name").
+		Join(
+			"information_schema.key_column_usage kcu",
+			"kcu.constraint_name = tco.constraint_name "+
+				"AND kcu.constraint_schema = tco.constraint_schema AND kcu.constraint_name = tco.constraint_name",
+		).
 		Where("tco.constraint_type = 'PRIMARY KEY'")
 
 	sb.Where(sb.Equal("kcu.table_name", iter.table))
@@ -291,11 +290,9 @@ func (iter *Iterator) populateKeyColumns(ctx context.Context, schema string) err
 		iter.keyColumns = append(iter.keyColumns, columnName)
 	}
 
-	if len(iter.keyColumns) != 0 {
-		return nil
+	if len(iter.keyColumns) == 0 {
+		iter.keyColumns = []string{iter.orderingColumn}
 	}
-
-	iter.keyColumns = []string{iter.orderingColumn}
 
 	return nil
 }
@@ -315,6 +312,7 @@ func (iter *Iterator) latestSnapshotValue(ctx context.Context) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("execute select latest snapshot value query %q: %w", query, err)
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		if err = rows.Scan(&latestSnapshotValue); err != nil {
@@ -323,4 +321,22 @@ func (iter *Iterator) latestSnapshotValue(ctx context.Context) (any, error) {
 	}
 
 	return latestSnapshotValue, nil
+}
+
+func (iter *Iterator) openDB(ctx context.Context, driverName string) error {
+	var err error
+	iter.db, err = sqlx.Open(driverName, config.DSN)
+	if err != nil {
+		return fmt.Errorf("open db connection: %w", err)
+	}
+
+	pingCtx, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	err = iter.db.PingContext(pingCtx)
+	if err != nil {
+		return fmt.Errorf("ping db with timeout: %w", err)
+	}
+
+	return nil
 }

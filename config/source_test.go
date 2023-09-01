@@ -16,18 +16,19 @@ package config
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
+
+	"github.com/matryer/is"
 )
 
 func TestParseSource(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name string
-		in   map[string]string
-		want Source
-		err  error
+		name      string
+		in        map[string]string
+		wantValue Source
+		wantErr   error
 	}{
 		{
 			name: "success_required_values_only",
@@ -36,7 +37,7 @@ func TestParseSource(t *testing.T) {
 				Table:          testValueTable,
 				OrderingColumn: "id",
 			},
-			want: Source{
+			wantValue: Source{
 				Configuration: Configuration{
 					DSN:   testValueDSN,
 					Table: testValueTable,
@@ -54,7 +55,7 @@ func TestParseSource(t *testing.T) {
 				OrderingColumn: "id",
 				BatchSize:      "100",
 			},
-			want: Source{
+			wantValue: Source{
 				Configuration: Configuration{
 					DSN:   testValueDSN,
 					Table: testValueTable,
@@ -73,7 +74,7 @@ func TestParseSource(t *testing.T) {
 				Snapshot:       "false",
 				BatchSize:      "100",
 			},
-			want: Source{
+			wantValue: Source{
 				Configuration: Configuration{
 					DSN:   testValueDSN,
 					Table: testValueTable,
@@ -91,7 +92,7 @@ func TestParseSource(t *testing.T) {
 				OrderingColumn: "id",
 				BatchSize:      "100000",
 			},
-			want: Source{
+			wantValue: Source{
 				Configuration: Configuration{
 					DSN:   testValueDSN,
 					Table: testValueTable,
@@ -109,7 +110,7 @@ func TestParseSource(t *testing.T) {
 				OrderingColumn: "id",
 				BatchSize:      "1",
 			},
-			want: Source{
+			wantValue: Source{
 				Configuration: Configuration{
 					DSN:   testValueDSN,
 					Table: testValueTable,
@@ -125,7 +126,7 @@ func TestParseSource(t *testing.T) {
 				DSN:   testValueDSN,
 				Table: testValueTable,
 			},
-			err: requiredErr(OrderingColumn),
+			wantErr: requiredErr(OrderingColumn),
 		},
 		{
 			name: "failure_orderingColumn_has_uppercase_letter",
@@ -134,7 +135,7 @@ func TestParseSource(t *testing.T) {
 				Table:          testValueTable,
 				OrderingColumn: "ID",
 			},
-			err: lowercaseErr(OrderingColumn),
+			wantErr: lowercaseErr(OrderingColumn),
 		},
 		{
 			name: "failure_orderingColumn_has_space",
@@ -143,7 +144,7 @@ func TestParseSource(t *testing.T) {
 				Table:          testValueTable,
 				OrderingColumn: "na me",
 			},
-			err: excludesallErr(OrderingColumn, excludeSpace),
+			wantErr: excludesallErr(OrderingColumn, excludeSpace),
 		},
 		{
 			name: "failure_batchSize_is_invalid",
@@ -153,7 +154,7 @@ func TestParseSource(t *testing.T) {
 				OrderingColumn: "id",
 				BatchSize:      "a",
 			},
-			err: fmt.Errorf(`parse %q: strconv.Atoi: parsing "a": invalid syntax`, BatchSize),
+			wantErr: fmt.Errorf(`parse %q: strconv.Atoi: parsing "a": invalid syntax`, BatchSize),
 		},
 		{
 			name: "failure_batchSize_is_too_big",
@@ -163,7 +164,7 @@ func TestParseSource(t *testing.T) {
 				OrderingColumn: "id",
 				BatchSize:      "100001",
 			},
-			err: lteErr(BatchSize, "100000"),
+			wantErr: lteErr(BatchSize, "100000"),
 		},
 		{
 			name: "failure_batchSize_is_zero",
@@ -173,7 +174,7 @@ func TestParseSource(t *testing.T) {
 				OrderingColumn: "id",
 				BatchSize:      "0",
 			},
-			err: gteErr(BatchSize, "1"),
+			wantErr: gteErr(BatchSize, "1"),
 		},
 		{
 			name: "failure_batchSize_is_negative",
@@ -183,7 +184,7 @@ func TestParseSource(t *testing.T) {
 				OrderingColumn: "id",
 				BatchSize:      "-1",
 			},
-			err: gteErr(BatchSize, "1"),
+			wantErr: gteErr(BatchSize, "1"),
 		},
 		{
 			name: "failure_snapshot_is_invalid",
@@ -193,7 +194,7 @@ func TestParseSource(t *testing.T) {
 				OrderingColumn: "id",
 				Snapshot:       "a",
 			},
-			err: fmt.Errorf(`parse %q: strconv.ParseBool: parsing "a": invalid syntax`, Snapshot),
+			wantErr: fmt.Errorf(`parse %q: strconv.ParseBool: parsing "a": invalid syntax`, Snapshot),
 		},
 	}
 
@@ -202,26 +203,15 @@ func TestParseSource(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			is := is.New(t)
 
 			got, err := ParseSource(tt.in)
-			if err != nil {
-				if tt.err == nil {
-					t.Errorf("unexpected error: %s", err.Error())
-
-					return
-				}
-
-				if err.Error() != tt.err.Error() {
-					t.Errorf("unexpected error, got: %s, want: %s", err.Error(), tt.err.Error())
-
-					return
-				}
-
-				return
-			}
-
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("got: %v, want: %v", got, tt.want)
+			if tt.wantErr == nil {
+				is.NoErr(err)
+				is.Equal(got, tt.wantValue)
+			} else {
+				is.True(err != nil)
+				is.Equal(err.Error(), tt.wantErr.Error())
 			}
 		})
 	}
