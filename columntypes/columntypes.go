@@ -145,8 +145,9 @@ func TransformRow(row map[string]any, columnTypes map[string]string) (map[string
 	return result, nil
 }
 
-// ConvertStructureData converts a [sdk.StructureData] values to a proper database types.
-func ConvertStructureData(
+// ConvertStructuredData converts a sdk.StructuredData value to another StructuredData value
+// but with proper database types.
+func ConvertStructuredData(
 	columnTypes map[string]string,
 	data sdk.StructuredData,
 ) (sdk.StructuredData, error) {

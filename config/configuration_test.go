@@ -16,7 +16,7 @@ package config
 
 import (
 	"fmt"
-	"reflect"
+	"github.com/matryer/is"
 	"testing"
 
 	"go.uber.org/multierr"
@@ -31,10 +31,10 @@ func TestParseCommon(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name string
-		in   map[string]string
-		want Configuration
-		err  error
+		name      string
+		in        map[string]string
+		wantValue Configuration
+		wantErr   error
 	}{
 		{
 			name: "success_required_values_only",
@@ -42,7 +42,7 @@ func TestParseCommon(t *testing.T) {
 				DSN:   testValueDSN,
 				Table: testValueTable,
 			},
-			want: Configuration{
+			wantValue: Configuration{
 				DSN:   testValueDSN,
 				Table: testValueTable,
 			},
@@ -54,7 +54,7 @@ func TestParseCommon(t *testing.T) {
 				Table:      testValueTable,
 				KeyColumns: "id",
 			},
-			want: Configuration{
+			wantValue: Configuration{
 				DSN:        testValueDSN,
 				Table:      testValueTable,
 				KeyColumns: []string{"id"},
@@ -67,7 +67,7 @@ func TestParseCommon(t *testing.T) {
 				Table:      testValueTable,
 				KeyColumns: "id,name",
 			},
-			want: Configuration{
+			wantValue: Configuration{
 				DSN:        testValueDSN,
 				Table:      testValueTable,
 				KeyColumns: []string{"id", "name"},
@@ -80,7 +80,7 @@ func TestParseCommon(t *testing.T) {
 				Table:      testValueTable,
 				KeyColumns: "id, name",
 			},
-			want: Configuration{
+			wantValue: Configuration{
 				DSN:        testValueDSN,
 				Table:      testValueTable,
 				KeyColumns: []string{"id", "name"},
@@ -93,7 +93,7 @@ func TestParseCommon(t *testing.T) {
 				Table:      testValueTable,
 				KeyColumns: "id,name ",
 			},
-			want: Configuration{
+			wantValue: Configuration{
 				DSN:        testValueDSN,
 				Table:      testValueTable,
 				KeyColumns: []string{"id", "name"},
@@ -106,7 +106,7 @@ func TestParseCommon(t *testing.T) {
 				Table:      testValueTable,
 				KeyColumns: " id,name",
 			},
-			want: Configuration{
+			wantValue: Configuration{
 				DSN:        testValueDSN,
 				Table:      testValueTable,
 				KeyColumns: []string{"id", "name"},
@@ -119,7 +119,7 @@ func TestParseCommon(t *testing.T) {
 				Table:      testValueTable,
 				KeyColumns: "id ,name",
 			},
-			want: Configuration{
+			wantValue: Configuration{
 				DSN:        testValueDSN,
 				Table:      testValueTable,
 				KeyColumns: []string{"id", "name"},
@@ -132,7 +132,7 @@ func TestParseCommon(t *testing.T) {
 				Table:      testValueTable,
 				KeyColumns: "id,  name",
 			},
-			want: Configuration{
+			wantValue: Configuration{
 				DSN:        testValueDSN,
 				Table:      testValueTable,
 				KeyColumns: []string{"id", "name"},
@@ -145,7 +145,7 @@ func TestParseCommon(t *testing.T) {
 				Table:      testValueTable,
 				KeyColumns: "id,name,",
 			},
-			err: fmt.Errorf("invalid %q", KeyColumns),
+			wantErr: fmt.Errorf("invalid %q", KeyColumns),
 		},
 		{
 			name: "failure_keyColumns_starts_with_comma",
@@ -154,7 +154,7 @@ func TestParseCommon(t *testing.T) {
 				Table:      testValueTable,
 				KeyColumns: ",id,name",
 			},
-			err: fmt.Errorf("invalid %q", KeyColumns),
+			wantErr: fmt.Errorf("invalid %q", KeyColumns),
 		},
 		{
 			name: "failure_keyColumns_invalid",
@@ -163,7 +163,7 @@ func TestParseCommon(t *testing.T) {
 				Table:      testValueTable,
 				KeyColumns: ",",
 			},
-			err: fmt.Errorf("invalid %q", KeyColumns),
+			wantErr: fmt.Errorf("invalid %q", KeyColumns),
 		},
 		{
 			name: "failure_table_has_space",
@@ -171,7 +171,7 @@ func TestParseCommon(t *testing.T) {
 				DSN:   testValueDSN,
 				Table: "test table",
 			},
-			err: fmt.Errorf("validate common configuration: %w", excludesallErr(Table, excludeSpace)),
+			wantErr: fmt.Errorf("validate common configuration: %w", excludesallErr(Table, excludeSpace)),
 		},
 		{
 			name: "failure_table_has_uppercase_letter",
@@ -179,7 +179,7 @@ func TestParseCommon(t *testing.T) {
 				DSN:   testValueDSN,
 				Table: "Test_table",
 			},
-			err: fmt.Errorf("validate common configuration: %w", lowercaseErr(Table)),
+			wantErr: fmt.Errorf("validate common configuration: %w", lowercaseErr(Table)),
 		},
 		{
 			name: "failure_keyColumns_has_uppercase_letter",
@@ -188,7 +188,7 @@ func TestParseCommon(t *testing.T) {
 				Table:      testValueTable,
 				KeyColumns: "ID",
 			},
-			err: fmt.Errorf("validate common configuration: %w", lowercaseErr(KeyColumns)),
+			wantErr: fmt.Errorf("validate common configuration: %w", lowercaseErr(KeyColumns)),
 		},
 		{
 			name: "failure_keyColumn_has_space",
@@ -197,26 +197,26 @@ func TestParseCommon(t *testing.T) {
 				Table:      testValueTable,
 				KeyColumns: "na me",
 			},
-			err: fmt.Errorf("validate common configuration: %w", excludesallErr(KeyColumns, excludeSpace)),
+			wantErr: fmt.Errorf("validate common configuration: %w", excludesallErr(KeyColumns, excludeSpace)),
 		},
 		{
 			name: "failure_dsn_is_required",
 			in: map[string]string{
 				Table: testValueTable,
 			},
-			err: fmt.Errorf("validate common configuration: %w", requiredErr(DSN)),
+			wantErr: fmt.Errorf("validate common configuration: %w", requiredErr(DSN)),
 		},
 		{
 			name: "failure_table_is_required",
 			in: map[string]string{
 				DSN: testValueDSN,
 			},
-			err: fmt.Errorf("validate common configuration: %w", requiredErr(Table)),
+			wantErr: fmt.Errorf("validate common configuration: %w", requiredErr(Table)),
 		},
 		{
 			name: "failure_dsn_and_table_are_required",
 			in:   map[string]string{},
-			err: fmt.Errorf("validate common configuration: %w",
+			wantErr: fmt.Errorf("validate common configuration: %w",
 				multierr.Combine(requiredErr(DSN), requiredErr(Table))),
 		},
 	}
@@ -226,26 +226,15 @@ func TestParseCommon(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			is := is.New(t)
 
 			got, err := parseCommon(tt.in)
-			if err != nil {
-				if tt.err == nil {
-					t.Errorf("unexpected error: %s", err.Error())
-
-					return
-				}
-
-				if err.Error() != tt.err.Error() {
-					t.Errorf("unexpected error, got: %s, want: %s", err.Error(), tt.err.Error())
-
-					return
-				}
-
-				return
-			}
-
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("got: %v, want: %v", got, tt.want)
+			if tt.wantErr == nil {
+				is.NoErr(err)
+				is.Equal(got, tt.wantValue)
+			} else {
+				is.True(err != nil)
+				is.Equal(err.Error(), tt.wantErr.Error())
 			}
 		})
 	}
