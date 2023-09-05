@@ -18,9 +18,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/matryer/is"
-
 	sdk "github.com/conduitio/conduit-connector-sdk"
+	"github.com/matryer/is"
 )
 
 func TestParseSDKPosition(t *testing.T) {
