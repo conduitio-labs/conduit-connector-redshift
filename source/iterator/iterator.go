@@ -66,7 +66,7 @@ func New(ctx context.Context, driverName string, pos *Position, config config.So
 		batchSize:      config.BatchSize,
 	}
 
-	err := iterator.openDB(ctx, driverName)
+	err := iterator.openDB(ctx, driverName, config.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
@@ -323,9 +323,9 @@ func (iter *Iterator) latestSnapshotValue(ctx context.Context) (any, error) {
 	return latestSnapshotValue, nil
 }
 
-func (iter *Iterator) openDB(ctx context.Context, driverName string) error {
+func (iter *Iterator) openDB(ctx context.Context, driverName string, dsn string) error {
 	var err error
-	iter.db, err = sqlx.Open(driverName, config.DSN)
+	iter.db, err = sqlx.Open(driverName, dsn)
 	if err != nil {
 		return fmt.Errorf("open db connection: %w", err)
 	}
