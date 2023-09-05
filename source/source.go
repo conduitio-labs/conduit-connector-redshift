@@ -77,17 +77,11 @@ func (s *Source) Parameters() map[string]sdk.Parameter {
 			Description: "Whether the connector will take a snapshot of the entire table before starting cdc mode.",
 		},
 		config.KeyColumns: {
-			Default: "",
-			Validations: []sdk.Validation{
-				sdk.ValidationRequired{},
-			},
+			Default:     "",
 			Description: "Comma-separated list of column names to build the sdk.Record.Key.",
 		},
 		config.BatchSize: {
-			Default: "1000",
-			Validations: []sdk.Validation{
-				sdk.ValidationRequired{},
-			},
+			Default:     "1000",
 			Description: "Size of rows batch. Min is 1 and max is 100000. The default is 1000.",
 		},
 	}
