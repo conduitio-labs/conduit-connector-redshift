@@ -16,9 +16,9 @@ package config
 
 import (
 	"fmt"
-	"github.com/matryer/is"
 	"testing"
 
+	"github.com/matryer/is"
 	"go.uber.org/multierr"
 )
 

@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	sdk "github.com/conduitio/conduit-connector-sdk"
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockWriter is a mock of Writer interface.

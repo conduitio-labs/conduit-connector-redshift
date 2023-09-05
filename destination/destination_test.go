@@ -23,8 +23,8 @@ import (
 	"github.com/conduitio-labs/conduit-connector-redshift/destination/mock"
 	"github.com/conduitio-labs/conduit-connector-redshift/destination/writer"
 	sdk "github.com/conduitio/conduit-connector-sdk"
-	"github.com/golang/mock/gomock"
 	"github.com/matryer/is"
+	"go.uber.org/mock/gomock"
 )
 
 const (
