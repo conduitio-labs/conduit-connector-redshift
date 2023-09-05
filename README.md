@@ -67,6 +67,8 @@ For each record, the connector adds a `redshift.table` property to the metadata 
 Conduit's Redshift destination connector allows you to move data to a Redshift table with the specified `dsn` and `table`
 configuration parameters. It takes an `sdk.Record` and parses it into a valid SQL query.
 
+**Note**: Redshift does not support map or slice types, so they will be stored as marshaled strings.
+
 ### Configuration Options
 
 | name         | description                                                                                                                                           | required | example                                               | default |
