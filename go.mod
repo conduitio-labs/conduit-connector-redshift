@@ -10,7 +10,7 @@ require (
 	github.com/jackc/pgx/v5 v5.4.3
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/matryer/is v1.4.1
-	go.uber.org/mock v0.2.0
+	go.uber.org/mock v0.3.0
 	go.uber.org/multierr v1.11.0
 )
 
