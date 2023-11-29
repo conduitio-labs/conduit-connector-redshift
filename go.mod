@@ -2,6 +2,8 @@ module github.com/conduitio-labs/conduit-connector-redshift
 
 go 1.21
 
+toolchain go1.21.1
+
 require (
 	github.com/conduitio/conduit-connector-sdk v0.8.0
 	github.com/go-playground/validator/v10 v10.16.0
