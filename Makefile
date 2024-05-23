@@ -16,9 +16,11 @@ gofumpt:
 fmt: gofumpt
 	gofumpt -l -w .
 
-.PHONY: golangci-lint-install
-golangci-lint-install:
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANG_CI_LINT_VER)
+.PHONY: install-tools
+install-tools:
+	@echo Installing tools from tools.go
+	@go list -e -f '{{ join .Imports "\n" }}' tools.go | xargs -tI % go install %
+	@go mod tidy
 
 .PHONY: lint
 lint: golangci-lint-install
