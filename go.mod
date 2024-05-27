@@ -6,7 +6,7 @@ require (
 	github.com/conduitio/conduit-connector-sdk v0.8.0
 	github.com/go-playground/validator/v10 v10.20.0
 	github.com/google/uuid v1.6.0
-	github.com/huandu/go-sqlbuilder v1.27.2
+	github.com/huandu/go-sqlbuilder v1.27.3
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/matryer/is v1.4.1
@@ -28,7 +28,7 @@ require (
 	github.com/hashicorp/go-hclog v0.14.1 // indirect
 	github.com/hashicorp/go-plugin v1.4.3 // indirect
 	github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb // indirect
-	github.com/huandu/xstrings v1.3.3 // indirect
+	github.com/huandu/xstrings v1.4.0 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
