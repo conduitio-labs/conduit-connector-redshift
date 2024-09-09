@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/conduitio/conduit-connector-sdk v0.8.0
-	github.com/go-playground/validator/v10 v10.22.0
+	github.com/go-playground/validator/v10 v10.22.1
 	github.com/google/uuid v1.6.0
 	github.com/huandu/go-sqlbuilder v1.29.0
 	github.com/jackc/pgx/v5 v5.6.0
