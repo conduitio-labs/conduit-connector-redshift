@@ -19,10 +19,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/conduitio-labs/conduit-connector-redshift/config"
-	srcConfig "github.com/conduitio-labs/conduit-connector-redshift/source/config"
+	"github.com/conduitio-labs/conduit-connector-redshift/common"
+	config "github.com/conduitio-labs/conduit-connector-redshift/source/config"
 	"github.com/conduitio-labs/conduit-connector-redshift/source/mock"
-	sdk "github.com/conduitio/conduit-connector-sdk"
+	"github.com/conduitio/conduit-commons/opencdc"
 	"github.com/matryer/is"
 	"go.uber.org/mock/gomock"
 )
@@ -40,13 +40,13 @@ func TestSource_Configure_requiredFieldsSuccess(t *testing.T) {
 	s := Source{}
 
 	err := s.Configure(context.Background(), map[string]string{
-		config.DSN:            testDSN,
-		config.Table:          testTable,
-		config.OrderingColumn: "created_at",
+		config.ConfigDsn:            testDSN,
+		config.ConfigTable:          testTable,
+		config.ConfigOrderingColumn: "created_at",
 	})
 	is.NoErr(err)
-	is.Equal(s.config, srcConfig.Config{
-		Configuration: config.Configuration{
+	is.Equal(s.config, config.Config{
+		Configuration: common.Configuration{
 			DSN:   testDSN,
 			Table: testTable,
 		},
@@ -64,16 +64,16 @@ func TestSource_Configure_allFieldsSuccess(t *testing.T) {
 	s := Source{}
 
 	err := s.Configure(context.Background(), map[string]string{
-		config.DSN:            testDSN,
-		config.Table:          testTable,
-		config.OrderingColumn: "created_at",
-		config.Snapshot:       "false",
-		config.KeyColumns:     "id,name",
-		config.BatchSize:      "10000",
+		config.ConfigDsn:            testDSN,
+		config.ConfigTable:          testTable,
+		config.ConfigOrderingColumn: "created_at",
+		config.ConfigSnapshot:       "false",
+		config.ConfigKeyColumns:     "id,name",
+		config.ConfigBatchSize:      "10000",
 	})
 	is.NoErr(err)
-	is.Equal(s.config, srcConfig.Config{
-		Configuration: config.Configuration{
+	is.Equal(s.config, config.Config{
+		Configuration: common.Configuration{
 			DSN:        testDSN,
 			Table:      testTable,
 			KeyColumns: []string{"id", "name"},
@@ -92,8 +92,8 @@ func TestSource_Configure_failure(t *testing.T) {
 	s := Source{}
 
 	err := s.Configure(context.Background(), map[string]string{
-		config.DSN:   testDSN,
-		config.Table: testTable,
+		config.ConfigDsn:   testDSN,
+		config.ConfigTable: testTable,
 	})
 	is.True(err != nil)
 	is.Equal(err.Error(), `parse source config: "orderingColumn" value must be set`)
@@ -107,14 +107,14 @@ func TestSource_Read_success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ctx := context.Background()
 
-	st := make(sdk.StructuredData)
+	st := make(opencdc.StructuredData)
 	st["key"] = "value"
 
-	record := sdk.Record{
-		Position: sdk.Position(`{"last_processed_element_value": 1}`),
+	record := opencdc.Record{
+		Position: opencdc.Position(`{"last_processed_element_value": 1}`),
 		Metadata: nil,
 		Key:      st,
-		Payload:  sdk.Change{After: st},
+		Payload:  opencdc.Change{After: st},
 	}
 
 	it := mock.NewMockIterator(ctrl)
@@ -161,7 +161,7 @@ func TestSource_Read_nextFailure(t *testing.T) {
 
 	it := mock.NewMockIterator(ctrl)
 	it.EXPECT().HasNext(ctx).Return(true, nil)
-	it.EXPECT().Next(ctx).Return(sdk.Record{}, errors.New("key is not exist"))
+	it.EXPECT().Next(ctx).Return(opencdc.Record{}, errors.New("key is not exist"))
 
 	s := Source{
 		iterator: it,

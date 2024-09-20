@@ -17,18 +17,17 @@
 package config
 
 import (
-	"github.com/conduitio-labs/conduit-connector-redshift/config"
+	"github.com/conduitio-labs/conduit-connector-redshift/common"
 )
 
 // Config contains source-specific configurable values.
 type Config struct {
-	config.Configuration
-
+	common.Configuration
 	// OrderingColumn is a name of a column that the connector will use for ordering rows.
-	OrderingColumn string `key:"orderingColumn" validate:"required,lowercase,excludesall= ,lte=127"`
+	OrderingColumn string `json:"orderingColumn"` // validate:"required,lowercase,excludesall= ,lte=127"`
 	// Snapshot is the configuration that determines whether the connector
 	// will take a snapshot of the entire table before starting cdc mode.
-	Snapshot bool `key:"snapshot" default:"true"`
+	Snapshot bool `json:"snapshot" default:"true"`
 	// BatchSize is a size of rows batch.
-	BatchSize int `key:"batchSize" validate:"gte=1,lte=100000" default:"1000"`
+	BatchSize int `json:"batchSize" default:"1000"` // validate:"gte=1,lte=100000" default:"1000"`
 }

@@ -12,27 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+//go:build tools
 
-// import (
-// 	"fmt"
-// )
+package main
 
-// // Destination is a destination configuration needed to connect to Redshift database.
-// type Destination struct {
-// 	Configuration
-// }
-
-// // ParseDestination parses a destination configuration.
-// func ParseDestination(cfg map[string]string) (Destination, error) {
-// 	config, err := parseCommon(cfg)
-// 	if err != nil {
-// 		return Destination{}, fmt.Errorf("parse common config: %w", err)
-// 	}
-
-// 	destinationConfig := Destination{
-// 		Configuration: config,
-// 	}
-
-// 	return destinationConfig, nil
-// }
+import (
+	_ "github.com/conduitio/conduit-commons/paramgen"
+	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
+)

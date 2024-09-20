@@ -18,9 +18,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/conduitio-labs/conduit-connector-redshift/config"
 	srcConfig "github.com/conduitio-labs/conduit-connector-redshift/source/config"
 	"github.com/conduitio-labs/conduit-connector-redshift/source/iterator"
+	commonsConfig "github.com/conduitio/conduit-commons/config"
+	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	_ "github.com/jackc/pgx/v5/stdlib" // sql driver
 )
@@ -31,7 +32,7 @@ const driverName = "pgx"
 // Iterator interface.
 type Iterator interface {
 	HasNext(context.Context) (bool, error)
-	Next(context.Context) (sdk.Record, error)
+	Next(context.Context) (opencdc.Record, error)
 	Stop() error
 }
 
@@ -49,48 +50,50 @@ func NewSource() sdk.Source {
 }
 
 // Parameters returns a map of named Parameters that describe how to configure the Source.
-func (s *Source) Parameters() map[string]sdk.Parameter {
-	return map[string]sdk.Parameter{
-		config.DSN: {
-			Default: "",
-			Validations: []sdk.Validation{
-				sdk.ValidationRequired{},
-			},
-			Description: "Data source name to connect to the Amazon Redshift.",
-		},
-		config.Table: {
-			Default: "",
-			Validations: []sdk.Validation{
-				sdk.ValidationRequired{},
-			},
-			Description: "Name of a table, the connector must read from.",
-		},
-		config.OrderingColumn: {
-			Default: "",
-			Validations: []sdk.Validation{
-				sdk.ValidationRequired{},
-			},
-			Description: "Column name that the connector will use for ordering rows. Column must contain unique " +
-				"values and suitable for sorting, otherwise the snapshot won't work correctly.",
-		},
-		config.Snapshot: {
-			Default:     "true",
-			Description: "Whether the connector will take a snapshot of the entire table before starting cdc mode.",
-		},
-		config.KeyColumns: {
-			Default:     "",
-			Description: "Comma-separated list of column names to build the sdk.Record.Key.",
-		},
-		config.BatchSize: {
-			Default:     "1000",
-			Description: "Size of rows batch. Min is 1 and max is 100000. The default is 1000.",
-		},
-	}
+func (s *Source) Parameters() commonsConfig.Parameters {
+	return commonsConfig.Parameters{}
+	// return s.config.Parameters()
+	// return map[string]config.Parameter{
+	// 	config.DSN: {
+	// 		Default: "",
+	// 		Validations: []config.Validation{
+	// 			config.ValidationRequired{},
+	// 		},
+	// 		Description: "Data source name to connect to the Amazon Redshift.",
+	// 	},
+	// 	config.Table: {
+	// 		Default: "",
+	// 		Validations: []config.Validation{
+	// 			config.ValidationRequired{},
+	// 		},
+	// 		Description: "Name of a table, the connector must read from.",
+	// 	},
+	// 	config.OrderingColumn: {
+	// 		Default: "",
+	// 		Validations: []config.Validation{
+	// 			config.ValidationRequired{},
+	// 		},
+	// 		Description: "Column name that the connector will use for ordering rows. Column must contain unique " +
+	// 			"values and suitable for sorting, otherwise the snapshot won't work correctly.",
+	// 	},
+	// 	config.Snapshot: {
+	// 		Default:     "true",
+	// 		Description: "Whether the connector will take a snapshot of the entire table before starting cdc mode.",
+	// 	},
+	// 	config.KeyColumns: {
+	// 		Default:     "",
+	// 		Description: "Comma-separated list of column names to build the opencdc.Record.Key.",
+	// 	},
+	// 	config.BatchSize: {
+	// 		Default:     "1000",
+	// 		Description: "Size of rows batch. Min is 1 and max is 100000. The default is 1000.",
+	// 	},
+	// }
 }
 
 // Configure parses and stores configurations,
 // returns an error in case of invalid configuration.
-func (s *Source) Configure(ctx context.Context, cfgRaw map[string]string) error {
+func (s *Source) Configure(ctx context.Context, cfgRaw commonsConfig.Config) error {
 	sdk.Logger(ctx).Info().Msg("Configuring Amazon Redshift Source...")
 
 	// var err error
@@ -104,7 +107,7 @@ func (s *Source) Configure(ctx context.Context, cfgRaw map[string]string) error 
 }
 
 // Open parses the position and initializes the iterator.
-func (s *Source) Open(ctx context.Context, position sdk.Position) error {
+func (s *Source) Open(ctx context.Context, position opencdc.Position) error {
 	sdk.Logger(ctx).Info().Msg("Opening an Amazon Redshift Source...")
 
 	pos, err := iterator.ParseSDKPosition(position)
@@ -121,28 +124,28 @@ func (s *Source) Open(ctx context.Context, position sdk.Position) error {
 }
 
 // Read returns the next record.
-func (s *Source) Read(ctx context.Context) (sdk.Record, error) {
+func (s *Source) Read(ctx context.Context) (opencdc.Record, error) {
 	sdk.Logger(ctx).Debug().Msg("Reading a record from Amazon Redshift Source...")
 
 	hasNext, err := s.iterator.HasNext(ctx)
 	if err != nil {
-		return sdk.Record{}, fmt.Errorf("has next: %w", err)
+		return opencdc.Record{}, fmt.Errorf("has next: %w", err)
 	}
 
 	if !hasNext {
-		return sdk.Record{}, sdk.ErrBackoffRetry
+		return opencdc.Record{}, sdk.ErrBackoffRetry
 	}
 
 	record, err := s.iterator.Next(ctx)
 	if err != nil {
-		return sdk.Record{}, fmt.Errorf("next: %w", err)
+		return opencdc.Record{}, fmt.Errorf("next: %w", err)
 	}
 
 	return record, nil
 }
 
 // Ack logs the debug event with the position.
-func (s *Source) Ack(ctx context.Context, position sdk.Position) error {
+func (s *Source) Ack(ctx context.Context, position opencdc.Position) error {
 	sdk.Logger(ctx).Trace().
 		Str("position", string(position)).
 		Msg("got ack")

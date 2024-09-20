@@ -24,7 +24,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/conduitio-labs/conduit-connector-redshift/config"
+	"github.com/conduitio-labs/conduit-connector-redshift/source/config"
+	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/jmoiron/sqlx"
 	"github.com/matryer/is"
@@ -43,7 +44,7 @@ func TestSource_Read_tableDoesNotExist(t *testing.T) {
 		cfg = prepareConfig(t, "col")
 	)
 
-	db, err := sqlx.Open(driverName, cfg[config.DSN])
+	db, err := sqlx.Open(driverName, cfg[config.ConfigDsn])
 	is.NoErr(err)
 	defer db.Close()
 
@@ -74,7 +75,7 @@ func TestSource_Read_tableHasNoData(t *testing.T) {
 		cfg = prepareConfig(t, "col")
 	)
 
-	db, err := sqlx.Open(driverName, cfg[config.DSN])
+	db, err := sqlx.Open(driverName, cfg[config.ConfigDsn])
 	is.NoErr(err)
 	defer db.Close()
 
@@ -87,11 +88,11 @@ func TestSource_Read_tableHasNoData(t *testing.T) {
 	err = db.PingContext(ctxTimeout)
 	is.NoErr(err)
 
-	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col INTEGER, PRIMARY KEY (col));", cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col INTEGER, PRIMARY KEY (col));", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.Table]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
 		is.NoErr(err)
 	}()
 
@@ -118,7 +119,7 @@ func TestSource_Read_keyColumnsFromConfig(t *testing.T) {
 		cfg = prepareConfig(t, "col1", "col1", "col2")
 	)
 
-	db, err := sqlx.Open(driverName, cfg[config.DSN])
+	db, err := sqlx.Open(driverName, cfg[config.ConfigDsn])
 	is.NoErr(err)
 	defer db.Close()
 
@@ -131,15 +132,15 @@ func TestSource_Read_keyColumnsFromConfig(t *testing.T) {
 	err = db.PingContext(ctxTimeout)
 	is.NoErr(err)
 
-	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.Table]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
 		is.NoErr(err)
 	}()
 
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	src := NewSource()
@@ -152,7 +153,7 @@ func TestSource_Read_keyColumnsFromConfig(t *testing.T) {
 
 	record, err := src.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Key, sdk.StructuredData(map[string]any{
+	is.Equal(record.Key, opencdc.StructuredData(map[string]any{
 		"col1": int64(1),
 		"col2": int64(2),
 	}))
@@ -169,7 +170,7 @@ func TestSource_Read_keyColumnsFromTableMetadata(t *testing.T) {
 		cfg = prepareConfig(t, "col1")
 	)
 
-	db, err := sqlx.Open(driverName, cfg[config.DSN])
+	db, err := sqlx.Open(driverName, cfg[config.ConfigDsn])
 	is.NoErr(err)
 	defer db.Close()
 
@@ -184,15 +185,15 @@ func TestSource_Read_keyColumnsFromTableMetadata(t *testing.T) {
 
 	_, err = db.Exec(fmt.Sprintf(
 		"CREATE TABLE %s (col1 INTEGER, col2 INTEGER, col3 INTEGER, PRIMARY KEY (col1, col2, col3));",
-		cfg[config.Table]))
+		cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.Table]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
 		is.NoErr(err)
 	}()
 
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2, 3);", cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2, 3);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	src := NewSource()
@@ -205,7 +206,7 @@ func TestSource_Read_keyColumnsFromTableMetadata(t *testing.T) {
 
 	record, err := src.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Key, sdk.StructuredData(map[string]any{
+	is.Equal(record.Key, opencdc.StructuredData(map[string]any{
 		"col1": int64(1),
 		"col2": int64(2),
 		"col3": int64(3),
@@ -223,7 +224,7 @@ func TestSource_Read_keyColumnsFromOrderingColumn(t *testing.T) {
 		cfg = prepareConfig(t, "col1")
 	)
 
-	db, err := sqlx.Open(driverName, cfg[config.DSN])
+	db, err := sqlx.Open(driverName, cfg[config.ConfigDsn])
 	is.NoErr(err)
 	defer db.Close()
 
@@ -236,15 +237,15 @@ func TestSource_Read_keyColumnsFromOrderingColumn(t *testing.T) {
 	err = db.PingContext(ctxTimeout)
 	is.NoErr(err)
 
-	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.Table]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
 		is.NoErr(err)
 	}()
 
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	src := NewSource()
@@ -257,7 +258,7 @@ func TestSource_Read_keyColumnsFromOrderingColumn(t *testing.T) {
 
 	record, err := src.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Key, sdk.StructuredData(map[string]any{
+	is.Equal(record.Key, opencdc.StructuredData(map[string]any{
 		"col1": int64(1),
 	}))
 
@@ -299,7 +300,7 @@ func TestSource_Read_checkTypes(t *testing.T) {
 		cfg            = prepareConfig(t, orderingColumn)
 	)
 
-	db, err := sqlx.Open(driverName, cfg[config.DSN])
+	db, err := sqlx.Open(driverName, cfg[config.ConfigDsn])
 	is.NoErr(err)
 	defer db.Close()
 
@@ -330,11 +331,11 @@ func TestSource_Read_checkTypes(t *testing.T) {
 		time_type         time,
 		time_tz_type      timetz,
 		varbyte_type      varbyte
-	);`, cfg[config.Table]))
+	);`, cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.Table]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
 		is.NoErr(err)
 	}()
 
@@ -365,7 +366,7 @@ func TestSource_Read_checkTypes(t *testing.T) {
 	}
 
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16);",
-		cfg[config.Table]),
+		cfg[config.ConfigTable]),
 		want.SmallIntType,
 		want.IntegerType,
 		want.BigIntType,
@@ -394,7 +395,7 @@ func TestSource_Read_checkTypes(t *testing.T) {
 
 	record, err := src.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Key, sdk.StructuredData(map[string]interface{}{orderingColumn: int64(want.SmallIntType)}))
+	is.Equal(record.Key, opencdc.StructuredData(map[string]interface{}{orderingColumn: int64(want.SmallIntType)}))
 
 	got := dataRow{}
 	err = json.Unmarshal(record.Payload.After.Bytes(), &got)
@@ -430,9 +431,9 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 	)
 
 	// set snapshot value to false
-	cfg[config.Snapshot] = "false"
+	cfg[config.ConfigSnapshot] = "false"
 
-	db, err := sqlx.Open(driverName, cfg[config.DSN])
+	db, err := sqlx.Open(driverName, cfg[config.ConfigDsn])
 	is.NoErr(err)
 	defer db.Close()
 
@@ -445,16 +446,16 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 	err = db.PingContext(ctxTimeout)
 	is.NoErr(err)
 
-	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.Table]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
 		is.NoErr(err)
 	}()
 
 	// insert a row to be sure that this data will not be transferred to the destination
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	src := NewSource()
@@ -469,15 +470,15 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 	is.Equal(err, sdk.ErrBackoffRetry)
 
 	// insert an additional row
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (3, 4);", cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (3, 4);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	record, err := src.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Key, sdk.StructuredData(map[string]any{
+	is.Equal(record.Key, opencdc.StructuredData(map[string]any{
 		"col1": int64(3),
 	}))
-	is.Equal(record.Operation, sdk.OperationCreate)
+	is.Equal(record.Operation, opencdc.OperationCreate)
 
 	_, err = src.Read(ctx)
 	is.Equal(err, sdk.ErrBackoffRetry)
@@ -501,9 +502,9 @@ func prepareConfig(t *testing.T, orderingColumn string, keyColumns ...string) ma
 	}
 
 	return map[string]string{
-		config.DSN:            dsn,
-		config.Table:          fmt.Sprintf("conduit_src_test_%d", time.Now().UnixNano()),
-		config.OrderingColumn: orderingColumn,
-		config.KeyColumns:     strings.Join(keyColumns, ","),
+		config.ConfigDsn:            dsn,
+		config.ConfigTable:          fmt.Sprintf("conduit_src_test_%d", time.Now().UnixNano()),
+		config.ConfigOrderingColumn: orderingColumn,
+		config.ConfigKeyColumns:     strings.Join(keyColumns, ","),
 	}
 }

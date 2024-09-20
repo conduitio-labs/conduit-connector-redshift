@@ -12,15 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate paramgen -output=paramgen.go Config
+package common
 
-package config
+// import (
+// 	"fmt"
+// )
 
-import (
-	"github.com/conduitio-labs/conduit-connector-redshift/common"
-)
+// // Destination is a destination configuration needed to connect to Redshift database.
+// type Destination struct {
+// 	Configuration
+// }
 
-// Config is a destination configuration needed to connect to Redshift database.
-type Config struct {
-	common.Configuration
-}
+// // ParseDestination parses a destination configuration.
+// func ParseDestination(cfg map[string]string) (Destination, error) {
+// 	config, err := parseCommon(cfg)
+// 	if err != nil {
+// 		return Destination{}, fmt.Errorf("parse common config: %w", err)
+// 	}
+
+// 	destinationConfig := Destination{
+// 		Configuration: config,
+// 	}
+
+// 	return destinationConfig, nil
+// }

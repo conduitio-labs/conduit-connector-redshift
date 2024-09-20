@@ -18,9 +18,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/conduitio-labs/conduit-connector-redshift/config"
 	destConfig "github.com/conduitio-labs/conduit-connector-redshift/destination/config"
 	"github.com/conduitio-labs/conduit-connector-redshift/destination/writer"
+	commonsConfig "github.com/conduitio/conduit-commons/config"
+	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	_ "github.com/jackc/pgx/v5/stdlib" // sql driver
 )
@@ -30,9 +31,9 @@ const driverName = "pgx"
 
 // Writer defines a writer interface needed for the Destination.
 type Writer interface {
-	Insert(context.Context, sdk.Record) error
-	Update(context.Context, sdk.Record) error
-	Delete(context.Context, sdk.Record) error
+	Insert(context.Context, opencdc.Record) error
+	Update(context.Context, opencdc.Record) error
+	Delete(context.Context, opencdc.Record) error
 	Stop() error
 }
 
@@ -50,29 +51,31 @@ func NewDestination() sdk.Destination {
 }
 
 // Parameters returns a map of named Parameters that describe how to configure the Destination.
-func (d *Destination) Parameters() map[string]sdk.Parameter {
-	return map[string]sdk.Parameter{
-		config.DSN: {
-			Default:     "",
-			Required:    true,
-			Description: "Data source name to connect to the Amazon Redshift.",
-		},
-		config.Table: {
-			Default:     "",
-			Required:    true,
-			Description: "Name of the table that the connector should read.",
-		},
-		config.KeyColumns: {
-			Default:  "",
-			Required: false,
-			Description: "Comma-separated list of column names to build the where clause " +
-				"in case if sdk.Record.Key is empty.",
-		},
-	}
+func (d *Destination) Parameters() commonsConfig.Parameters {
+	return commonsConfig.Parameters{}
+	// return d.config.Parameters()
+	// return map[string]config.Parameter{
+	// 	config.DSN: {
+	// 		Default:     "",
+	// 		Required:    true,
+	// 		Description: "Data source name to connect to the Amazon Redshift.",
+	// 	},
+	// 	config.Table: {
+	// 		Default:     "",
+	// 		Required:    true,
+	// 		Description: "Name of the table that the connector should read.",
+	// 	},
+	// 	config.KeyColumns: {
+	// 		Default:  "",
+	// 		Required: false,
+	// 		Description: "Comma-separated list of column names to build the where clause " +
+	// 			"in case if opencdc.Record.Key is empty.",
+	// 	},
+	// }
 }
 
 // Configure parses and stores configurations, returns an error in case of invalid configuration.
-func (d *Destination) Configure(ctx context.Context, cfg map[string]string) error {
+func (d *Destination) Configure(ctx context.Context, cfg commonsConfig.Config) error {
 	sdk.Logger(ctx).Info().Msg("Configuring Redshift Destination...")
 
 	// var err error
@@ -100,7 +103,7 @@ func (d *Destination) Open(ctx context.Context) error {
 }
 
 // Write writes records into a Destination.
-func (d *Destination) Write(ctx context.Context, records []sdk.Record) (int, error) {
+func (d *Destination) Write(ctx context.Context, records []opencdc.Record) (int, error) {
 	for i := range records {
 		sdk.Logger(ctx).Debug().Bytes("record", records[i].Bytes()).
 			Msg("Writing a record into Redshift Destination...")
