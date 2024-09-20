@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/columntypes"
-	"github.com/conduitio-labs/conduit-connector-redshift/config"
+	"github.com/conduitio-labs/conduit-connector-redshift/source/config"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/jmoiron/sqlx"
@@ -57,7 +57,7 @@ type Iterator struct {
 }
 
 // New creates a new instance of the iterator.
-func New(ctx context.Context, driverName string, pos *Position, config config.Source) (*Iterator, error) {
+func New(ctx context.Context, driverName string, pos *Position, config config.Config) (*Iterator, error) {
 	iterator := &Iterator{
 		position:       pos,
 		table:          config.Table,

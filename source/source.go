@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/config"
+	srcConfig "github.com/conduitio-labs/conduit-connector-redshift/source/config"
 	"github.com/conduitio-labs/conduit-connector-redshift/source/iterator"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	_ "github.com/jackc/pgx/v5/stdlib" // sql driver
@@ -38,7 +39,7 @@ type Iterator interface {
 type Source struct {
 	sdk.UnimplementedSource
 
-	config   config.Source
+	config   srcConfig.Config
 	iterator Iterator
 }
 
@@ -92,12 +93,12 @@ func (s *Source) Parameters() map[string]sdk.Parameter {
 func (s *Source) Configure(ctx context.Context, cfgRaw map[string]string) error {
 	sdk.Logger(ctx).Info().Msg("Configuring Amazon Redshift Source...")
 
-	var err error
+	// var err error
 
-	s.config, err = config.ParseSource(cfgRaw)
-	if err != nil {
-		return fmt.Errorf("parse source config: %w", err)
-	}
+	// s.config, err = config.ParseSource(cfgRaw)
+	// if err != nil {
+	// 	return fmt.Errorf("parse source config: %w", err)
+	// }
 
 	return nil
 }

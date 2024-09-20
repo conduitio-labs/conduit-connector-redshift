@@ -14,11 +14,6 @@
 
 package config
 
-import (
-	"fmt"
-	"strconv"
-)
-
 const (
 	// OrderingColumn is a config name for the orderingColumn field.
 	OrderingColumn = "orderingColumn"
@@ -33,51 +28,51 @@ const (
 	defaultSnapshot = true
 )
 
-// Source contains source-specific configurable values.
-type Source struct {
-	Configuration
+// // Source contains source-specific configurable values.
+// type Source struct {
+// 	Configuration
 
-	// OrderingColumn is a name of a column that the connector will use for ordering rows.
-	OrderingColumn string `key:"orderingColumn" validate:"required,lowercase,excludesall= ,lte=127"`
-	// Snapshot is the configuration that determines whether the connector
-	// will take a snapshot of the entire table before starting cdc mode.
-	Snapshot bool `key:"snapshot"`
-	// BatchSize is a size of rows batch.
-	BatchSize int `key:"batchSize" validate:"gte=1,lte=100000"`
-}
+// 	// OrderingColumn is a name of a column that the connector will use for ordering rows.
+// 	OrderingColumn string `key:"orderingColumn" validate:"required,lowercase,excludesall= ,lte=127"`
+// 	// Snapshot is the configuration that determines whether the connector
+// 	// will take a snapshot of the entire table before starting cdc mode.
+// 	Snapshot bool `key:"snapshot"`
+// 	// BatchSize is a size of rows batch.
+// 	BatchSize int `key:"batchSize" validate:"gte=1,lte=100000"`
+// }
 
-// ParseSource parses source configuration to the [Source] and validates it.
-func ParseSource(cfg map[string]string) (Source, error) {
-	commonConfig, err := parseCommon(cfg)
-	if err != nil {
-		return Source{}, fmt.Errorf("parse source configuration: %w", err)
-	}
+// // ParseSource parses source configuration to the [Source] and validates it.
+// func ParseSource(cfg map[string]string) (Source, error) {
+// 	commonConfig, err := parseCommon(cfg)
+// 	if err != nil {
+// 		return Source{}, fmt.Errorf("parse source configuration: %w", err)
+// 	}
 
-	sourceConfig := Source{
-		Configuration:  commonConfig,
-		OrderingColumn: cfg[OrderingColumn],
-		Snapshot:       defaultSnapshot,
-		BatchSize:      defaultBatchSize,
-	}
+// 	sourceConfig := Source{
+// 		Configuration:  commonConfig,
+// 		OrderingColumn: cfg[OrderingColumn],
+// 		Snapshot:       defaultSnapshot,
+// 		BatchSize:      defaultBatchSize,
+// 	}
 
-	if cfg[Snapshot] != "" {
-		sourceConfig.Snapshot, err = strconv.ParseBool(cfg[Snapshot])
-		if err != nil {
-			return Source{}, fmt.Errorf("parse %q: %w", Snapshot, err)
-		}
-	}
+// 	if cfg[Snapshot] != "" {
+// 		sourceConfig.Snapshot, err = strconv.ParseBool(cfg[Snapshot])
+// 		if err != nil {
+// 			return Source{}, fmt.Errorf("parse %q: %w", Snapshot, err)
+// 		}
+// 	}
 
-	if cfg[BatchSize] != "" {
-		sourceConfig.BatchSize, err = strconv.Atoi(cfg[BatchSize])
-		if err != nil {
-			return Source{}, fmt.Errorf("parse %q: %w", BatchSize, err)
-		}
-	}
+// 	if cfg[BatchSize] != "" {
+// 		sourceConfig.BatchSize, err = strconv.Atoi(cfg[BatchSize])
+// 		if err != nil {
+// 			return Source{}, fmt.Errorf("parse %q: %w", BatchSize, err)
+// 		}
+// 	}
 
-	err = validateStruct(sourceConfig)
-	if err != nil {
-		return Source{}, err
-	}
+// 	err = validateStruct(sourceConfig)
+// 	if err != nil {
+// 		return Source{}, err
+// 	}
 
-	return sourceConfig, nil
-}
+// 	return sourceConfig, nil
+// }

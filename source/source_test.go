@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/config"
+	srcConfig "github.com/conduitio-labs/conduit-connector-redshift/source/config"
 	"github.com/conduitio-labs/conduit-connector-redshift/source/mock"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/matryer/is"
@@ -44,7 +45,7 @@ func TestSource_Configure_requiredFieldsSuccess(t *testing.T) {
 		config.OrderingColumn: "created_at",
 	})
 	is.NoErr(err)
-	is.Equal(s.config, config.Source{
+	is.Equal(s.config, srcConfig.Config{
 		Configuration: config.Configuration{
 			DSN:   testDSN,
 			Table: testTable,
@@ -71,7 +72,7 @@ func TestSource_Configure_allFieldsSuccess(t *testing.T) {
 		config.BatchSize:      "10000",
 	})
 	is.NoErr(err)
-	is.Equal(s.config, config.Source{
+	is.Equal(s.config, srcConfig.Config{
 		Configuration: config.Configuration{
 			DSN:        testDSN,
 			Table:      testTable,

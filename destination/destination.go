@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/config"
+	destConfig "github.com/conduitio-labs/conduit-connector-redshift/destination/config"
 	"github.com/conduitio-labs/conduit-connector-redshift/destination/writer"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	_ "github.com/jackc/pgx/v5/stdlib" // sql driver
@@ -39,7 +40,7 @@ type Writer interface {
 type Destination struct {
 	sdk.UnimplementedDestination
 
-	config config.Destination
+	config destConfig.Config
 	writer Writer
 }
 
@@ -74,12 +75,12 @@ func (d *Destination) Parameters() map[string]sdk.Parameter {
 func (d *Destination) Configure(ctx context.Context, cfg map[string]string) error {
 	sdk.Logger(ctx).Info().Msg("Configuring Redshift Destination...")
 
-	var err error
+	// var err error
 
-	d.config, err = config.ParseDestination(cfg)
-	if err != nil {
-		return fmt.Errorf("parse destination config: %w", err)
-	}
+	// // d.config, err = config.ParseDestination(cfg)
+	// // if err != nil {
+	// // 	return fmt.Errorf("parse destination config: %w", err)
+	// // }
 
 	return nil
 }

@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/columntypes"
-	"github.com/conduitio-labs/conduit-connector-redshift/config"
+	"github.com/conduitio-labs/conduit-connector-redshift/destination/config"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/jmoiron/sqlx"
@@ -46,7 +46,7 @@ type Writer struct {
 }
 
 // NewWriter creates new instance of the Writer.
-func NewWriter(ctx context.Context, driverName string, config config.Destination) (*Writer, error) {
+func NewWriter(ctx context.Context, driverName string, config config.Config) (*Writer, error) {
 	var err error
 
 	writer := &Writer{
