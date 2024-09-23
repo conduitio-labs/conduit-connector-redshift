@@ -53,44 +53,7 @@ func NewSource() sdk.Source {
 
 // Parameters returns a map of named Parameters that describe how to configure the Source.
 func (s *Source) Parameters() commonsConfig.Parameters {
-	return commonsConfig.Parameters{}
-	// return s.config.Parameters()
-	// return map[string]config.Parameter{
-	// 	config.DSN: {
-	// 		Default: "",
-	// 		Validations: []config.Validation{
-	// 			config.ValidationRequired{},
-	// 		},
-	// 		Description: "Data source name to connect to the Amazon Redshift.",
-	// 	},
-	// 	config.Table: {
-	// 		Default: "",
-	// 		Validations: []config.Validation{
-	// 			config.ValidationRequired{},
-	// 		},
-	// 		Description: "Name of a table, the connector must read from.",
-	// 	},
-	// 	config.OrderingColumn: {
-	// 		Default: "",
-	// 		Validations: []config.Validation{
-	// 			config.ValidationRequired{},
-	// 		},
-	// 		Description: "Column name that the connector will use for ordering rows. Column must contain unique " +
-	// 			"values and suitable for sorting, otherwise the snapshot won't work correctly.",
-	// 	},
-	// 	config.Snapshot: {
-	// 		Default:     "true",
-	// 		Description: "Whether the connector will take a snapshot of the entire table before starting cdc mode.",
-	// 	},
-	// 	config.KeyColumns: {
-	// 		Default:     "",
-	// 		Description: "Comma-separated list of column names to build the opencdc.Record.Key.",
-	// 	},
-	// 	config.BatchSize: {
-	// 		Default:     "1000",
-	// 		Description: "Size of rows batch. Min is 1 and max is 100000. The default is 1000.",
-	// 	},
-	// }
+	return s.config.Parameters()
 }
 
 // Configure parses and stores configurations,
@@ -98,12 +61,15 @@ func (s *Source) Parameters() commonsConfig.Parameters {
 func (s *Source) Configure(ctx context.Context, cfgRaw commonsConfig.Config) error {
 	sdk.Logger(ctx).Info().Msg("Configuring Amazon Redshift Source...")
 
-	// var err error
+	err := sdk.Util.ParseConfig(ctx, cfgRaw, &s.config, NewSource().Parameters())
+	if err != nil {
+		return err
+	}
 
-	// s.config, err = config.ParseSource(cfgRaw)
-	// if err != nil {
-	// 	return fmt.Errorf("parse source config: %w", err)
-	// }
+	err = s.config.Validate()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

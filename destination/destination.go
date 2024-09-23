@@ -54,38 +54,22 @@ func NewDestination() sdk.Destination {
 
 // Parameters returns a map of named Parameters that describe how to configure the Destination.
 func (d *Destination) Parameters() commonsConfig.Parameters {
-	return commonsConfig.Parameters{}
-	// return d.config.Parameters()
-	// return map[string]config.Parameter{
-	// 	config.DSN: {
-	// 		Default:     "",
-	// 		Required:    true,
-	// 		Description: "Data source name to connect to the Amazon Redshift.",
-	// 	},
-	// 	config.Table: {
-	// 		Default:     "",
-	// 		Required:    true,
-	// 		Description: "Name of the table that the connector should read.",
-	// 	},
-	// 	config.KeyColumns: {
-	// 		Default:  "",
-	// 		Required: false,
-	// 		Description: "Comma-separated list of column names to build the where clause " +
-	// 			"in case if opencdc.Record.Key is empty.",
-	// 	},
-	// }
+	return d.config.Parameters()
 }
 
 // Configure parses and stores configurations, returns an error in case of invalid configuration.
 func (d *Destination) Configure(ctx context.Context, cfg commonsConfig.Config) error {
 	sdk.Logger(ctx).Info().Msg("Configuring Redshift Destination...")
 
-	// var err error
+	err := sdk.Util.ParseConfig(ctx, cfg, &d.config, NewDestination().Parameters())
+	if err != nil {
+		return err
+	}
 
-	// // d.config, err = config.ParseDestination(cfg)
-	// // if err != nil {
-	// // 	return fmt.Errorf("parse destination config: %w", err)
-	// // }
+	err = d.config.Validate()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

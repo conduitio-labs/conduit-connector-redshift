@@ -14,46 +14,18 @@
 
 package common
 
-// const (
-// 	// DSN is the configuration name of the data source name to connect to the Amazon Redshift.
-// 	DSN = "dsn"
-// 	// Table is the configuration name of the table name.
-// 	Table = "table"
-// 	// KeyColumns is the configuration name of comma-separated column names to build the opencdc.Record.Key.
-// 	KeyColumns = "keyColumns"
-// )
+const (
+	MaxConfigStringLength = 127
+	MinConfigBatchSize    = 1
+	MaxConfigBatchSize    = 100000
+)
 
 // Configuration contains common for source and destination configurable values.
 type Configuration struct {
 	// DSN is the configuration of the data source name to connect to the Amazon Redshift.
 	DSN string `json:"dsn" validate:"required"`
 	// Table is the configuration of the table name.
-	Table string `json:"table" validate:"required"` //,lowercase,excludesall= ,lte=127"`
+	Table string `json:"table" validate:"required"`
 	// KeyColumns is the configuration of comma-separated column names to build the opencdc.Record.Key (for Source).
-	KeyColumns []string `json:"keyColumns"` // validate:"omitempty,dive,lowercase,excludesall= ,lte=127"`
+	KeyColumns []string `json:"keyColumns,omitempty"`
 }
-
-// // parseCommon parses a common configuration.
-// func parseCommon(cfg map[string]string) (Configuration, error) {
-// 	commonConfig := Configuration{
-// 		DSN:   cfg[DSN],
-// 		Table: cfg[Table],
-// 	}
-
-// 	if cfg[KeyColumns] != "" {
-// 		keyColumns := strings.Split(cfg[KeyColumns], ",")
-// 		for i := range keyColumns {
-// 			if keyColumns[i] == "" {
-// 				return Configuration{}, fmt.Errorf("invalid %q", KeyColumns)
-// 			}
-
-// 			commonConfig.KeyColumns = append(commonConfig.KeyColumns, strings.TrimSpace(keyColumns[i]))
-// 		}
-// 	}
-
-// 	if err := validateStruct(commonConfig); err != nil {
-// 		return Configuration{}, fmt.Errorf("validate common configuration: %w", err)
-// 	}
-
-// 	return commonConfig, nil
-// }

@@ -42,7 +42,9 @@ func (Config) Parameters() map[string]config.Parameter {
 			Default:     "",
 			Description: "OrderingColumn is a name of a column that the connector will use for ordering rows.",
 			Type:        config.ParameterTypeString,
-			Validations: []config.Validation{},
+			Validations: []config.Validation{
+				config.ValidationRequired{},
+			},
 		},
 		ConfigSnapshot: {
 			Default:     "true",
