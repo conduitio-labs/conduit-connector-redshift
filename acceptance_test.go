@@ -21,7 +21,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/conduitio-labs/conduit-connector-redshift/config"
+	destConfig "github.com/conduitio-labs/conduit-connector-redshift/destination/config"
+	srcConfig "github.com/conduitio-labs/conduit-connector-redshift/source/config"
+	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -43,20 +45,20 @@ type driver struct {
 	id int64
 }
 
-// GenerateRecord generates a random sdk.Record.
-func (d *driver) GenerateRecord(_ *testing.T, operation sdk.Operation) sdk.Record {
+// GenerateRecord generates a random opencdc.Record.
+func (d *driver) GenerateRecord(_ *testing.T, operation opencdc.Operation) opencdc.Record {
 	atomic.AddInt64(&d.id, 1)
 
-	return sdk.Record{
+	return opencdc.Record{
 		Position:  nil,
 		Operation: operation,
 		Metadata: map[string]string{
-			metadataFieldTable: d.Config.SourceConfig[config.Table],
+			metadataFieldTable: d.Config.SourceConfig[srcConfig.ConfigTable],
 		},
-		Key: sdk.StructuredData{
+		Key: opencdc.StructuredData{
 			"col1": d.id,
 		},
-		Payload: sdk.Change{After: sdk.RawData(
+		Payload: opencdc.Change{After: opencdc.RawData(
 			fmt.Sprintf(`{"col1":%d,"col2":"%s"}`, d.id, uuid.NewString()),
 		)},
 	}
@@ -69,9 +71,9 @@ func TestAcceptance(t *testing.T) {
 	}
 
 	cfg := map[string]string{
-		config.DSN:            dsn,
-		config.Table:          fmt.Sprintf("conduit_test_%d", time.Now().UnixNano()),
-		config.OrderingColumn: "col1",
+		srcConfig.ConfigDsn:            dsn,
+		srcConfig.ConfigTable:          fmt.Sprintf("conduit_test_%d", time.Now().UnixNano()),
+		srcConfig.ConfigOrderingColumn: "col1",
 	}
 
 	sdk.AcceptanceTest(t, &driver{
@@ -94,11 +96,11 @@ func beforeTest(cfg map[string]string) func(*testing.T) {
 
 		is := is.New(t)
 
-		db, err := sqlx.Open(driverName, cfg[config.DSN])
+		db, err := sqlx.Open(driverName, cfg[destConfig.ConfigDsn])
 		is.NoErr(err)
 		defer db.Close()
 
-		_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 VARCHAR(36));", cfg[config.Table]))
+		_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 VARCHAR(36));", cfg[destConfig.ConfigTable]))
 		is.NoErr(err)
 	}
 }
@@ -110,11 +112,11 @@ func afterTest(cfg map[string]string) func(*testing.T) {
 
 		is := is.New(t)
 
-		db, err := sqlx.Open(driverName, cfg[config.DSN])
+		db, err := sqlx.Open(driverName, cfg[destConfig.ConfigDsn])
 		is.NoErr(err)
 		defer db.Close()
 
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s", cfg[config.Table]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s", cfg[destConfig.ConfigTable]))
 		is.NoErr(err)
 	}
 }
