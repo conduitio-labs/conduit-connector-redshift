@@ -9,14 +9,6 @@ build:
 test:
 	go test $(GOTEST_FLAGS) -v -race ./...
 
-.PHONY: test-integration
-test-integration:
-	# run required docker containers, execute integration tests, stop containers after tests
-	docker compose -f test/docker-compose.yml up --quiet-pull -d --wait
-	go test $(GOTEST_FLAGS) -v -race ./...; ret=$$?; \
-		docker compose -f test/docker-compose.yml down; \
-		exit $$ret
-
 .PHONY: gofumpt
 gofumpt:
 	go install mvdan.cc/gofumpt@latest
@@ -37,11 +29,6 @@ lint:
 dep:
 	go mod download
 	go mod tidy
-
-.PHONY: mockgen
-mockgen:
-	mockgen -package mock -source source/source.go -destination source/mock/source.go
-	mockgen -package mock -source destination/destination.go -destination destination/mock/destination.go
 
 .PHONY: generate
 generate:
