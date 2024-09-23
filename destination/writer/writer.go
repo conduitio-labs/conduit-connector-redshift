@@ -249,7 +249,7 @@ func (w *Writer) getKeyColumns(key opencdc.StructuredData) ([]string, error) {
 // structurizeData converts opencdc.Data to opencdc.StructuredData.
 func (w *Writer) structurizeData(data opencdc.Data) (opencdc.StructuredData, error) {
 	if data == nil || len(data.Bytes()) == 0 {
-		return nil, nil
+		return opencdc.StructuredData{}, nil
 	}
 
 	structuredData := make(opencdc.StructuredData)

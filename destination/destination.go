@@ -63,12 +63,12 @@ func (d *Destination) Configure(ctx context.Context, cfg commonsConfig.Config) e
 
 	err := sdk.Util.ParseConfig(ctx, cfg, &d.config, NewDestination().Parameters())
 	if err != nil {
-		return err
+		return err //nolint: wrapcheck // not needed here
 	}
 
 	err = d.config.Validate()
 	if err != nil {
-		return err
+		return fmt.Errorf("error validating configuration: %w", err)
 	}
 
 	return nil

@@ -85,8 +85,6 @@ func TestParseSDKPosition(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
-
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			is := is.New(t)
@@ -147,10 +145,7 @@ func TestMarshal(t *testing.T) {
 			want: opencdc.Position(`{"lastProcessedValue":null,"latestSnapshotValue":30}`),
 		},
 	}
-
 	for _, tt := range tests {
-		tt := tt
-
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			is := is.New(t)
