@@ -58,7 +58,7 @@ func TestDestination_Configure_Fail(t *testing.T) {
 	})
 	is.True(err != nil)
 	is.Equal(err.Error(),
-		`parse destination config: parse common config: validate common configuration: "table" value must be set`)
+		`config invalid: error validating "table": required parameter is not provided`)
 }
 
 func TestDestination_Write_Success(t *testing.T) {

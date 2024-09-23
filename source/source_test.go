@@ -96,7 +96,7 @@ func TestSource_Configure_failure(t *testing.T) {
 		config.ConfigTable: testTable,
 	})
 	is.True(err != nil)
-	is.Equal(err.Error(), `parse source config: "orderingColumn" value must be set`)
+	is.Equal(err.Error(), `config invalid: error validating "orderingColumn": required parameter is not provided`)
 }
 
 func TestSource_Read_success(t *testing.T) {
