@@ -27,5 +27,5 @@ type Configuration struct {
 	// Table is the configuration of the table name.
 	Table string `json:"table" validate:"required"`
 	// KeyColumns is the configuration of comma-separated column names to build the opencdc.Record.Key (for Source).
-	KeyColumns []string `json:"keyColumns,omitempty"`
+	KeyColumns []string `json:"keyColumns"`
 }
