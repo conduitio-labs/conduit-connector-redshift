@@ -29,6 +29,8 @@ import (
 // driverName is a database driver name.
 const driverName = "pgx"
 
+//go:generate mockgen -package mock -source destination.go -destination ./mock/destination.go
+
 // Writer defines a writer interface needed for the Destination.
 type Writer interface {
 	Insert(context.Context, opencdc.Record) error

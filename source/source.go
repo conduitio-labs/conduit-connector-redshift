@@ -29,6 +29,8 @@ import (
 // driverName is a database driver name.
 const driverName = "pgx"
 
+//go:generate mockgen -package mock -source source.go -destination ./mock/source.go
+
 // Iterator interface.
 type Iterator interface {
 	HasNext(context.Context) (bool, error)
