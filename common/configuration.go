@@ -26,6 +26,6 @@ type Configuration struct {
 	DSN string `json:"dsn" validate:"required"`
 	// Table is the configuration of the table name.
 	Table string `json:"table" validate:"required"`
-	// KeyColumns is the configuration of comma-separated column names to build the opencdc.Record.Key (for Source).
+	// KeyColumns is the configuration list of column names to build the opencdc.Record.Key (for Source).
 	KeyColumns []string `json:"keyColumns"`
 }

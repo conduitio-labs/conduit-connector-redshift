@@ -38,8 +38,8 @@ func (e ExcludesSpacesError) Error() string {
 	return fmt.Sprintf("%q value must not contain spaces", e.fieldName)
 }
 
-func NewExcludesSpacesError(fieldName string) LowercaseError {
-	return LowercaseError{fieldName: fieldName}
+func NewExcludesSpacesError(fieldName string) ExcludesSpacesError {
+	return ExcludesSpacesError{fieldName: fieldName}
 }
 
 type LessThanError struct {
