@@ -25,7 +25,7 @@ func (Config) Parameters() map[string]config.Parameter {
 		},
 		ConfigKeyColumns: {
 			Default:     "",
-			Description: "KeyColumns is the configuration of comma-separated column names to build the opencdc.Record.Key (for Source).",
+			Description: "KeyColumns is the configuration list of column names to build the opencdc.Record.Key (for Source).",
 			Type:        config.ParameterTypeString,
 			Validations: []config.Validation{},
 		},
