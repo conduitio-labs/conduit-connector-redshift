@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	destConfig "github.com/conduitio-labs/conduit-connector-redshift/destination/config"
+	"github.com/conduitio-labs/conduit-connector-redshift/destination/config"
 	"github.com/conduitio-labs/conduit-connector-redshift/destination/writer"
 	commonsConfig "github.com/conduitio/conduit-commons/config"
 	"github.com/conduitio/conduit-commons/opencdc"
@@ -43,7 +43,7 @@ type Writer interface {
 type Destination struct {
 	sdk.UnimplementedDestination
 
-	config destConfig.Config
+	config config.Config
 	writer Writer
 }
 

@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	srcConfig "github.com/conduitio-labs/conduit-connector-redshift/source/config"
+	"github.com/conduitio-labs/conduit-connector-redshift/source/config"
 	"github.com/conduitio-labs/conduit-connector-redshift/source/iterator"
 	commonsConfig "github.com/conduitio/conduit-commons/config"
 	"github.com/conduitio/conduit-commons/opencdc"
@@ -42,7 +42,7 @@ type Iterator interface {
 type Source struct {
 	sdk.UnimplementedSource
 
-	config   srcConfig.Config
+	config   config.Config
 	iterator Iterator
 }
 
