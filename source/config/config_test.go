@@ -23,7 +23,6 @@ import (
 
 const (
 	testValueDSN   = "postgres://username:password@endpoint:5439/database"
-	testValueTable = "test_table"
 	testLongString = `this_is_a_very_long_string_which_exceeds_max_config_string_limit_
 						abcdefghijklmnopqrstuvwxyz_zyxwvutsrqponmlkjihgfedcba_xxxxxxxx`
 )
@@ -37,182 +36,133 @@ func TestValidateConfig(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "success_keyColumns_has_one_key",
+			name: "success",
 			in: &Config{
 				Configuration: common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id"},
+					DSN: testValueDSN,
 				},
-				OrderingColumn: "id",
-				BatchSize:      1,
+				Tables:          []string{"test_table1", "test_table2"},
+				OrderingColumns: []string{"id1", "id2"},
+				Snapshot:        true,
+				BatchSize:       1000,
 			},
 			wantErr: nil,
 		},
 		{
-			name: "success_keyColumns_has_two_keys",
+			name: "failure_no_tables",
 			in: &Config{
 				Configuration: common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id", "name"},
+					DSN: testValueDSN,
 				},
-				OrderingColumn: "id",
-				BatchSize:      1,
+				OrderingColumns: []string{"id"},
+				BatchSize:       1000,
 			},
-			wantErr: nil,
+			wantErr: common.NewNoTablesOrColumnsError(),
 		},
 		{
-			name: "success_keyColumns_ends_with_space",
+			name: "failure_no_ordering_columns",
 			in: &Config{
 				Configuration: common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id", "name "},
+					DSN: testValueDSN,
 				},
-				OrderingColumn: "id",
-				BatchSize:      1,
+				Tables:    []string{"test_table"},
+				BatchSize: 1000,
 			},
-			wantErr: common.NewExcludesSpacesError(ConfigKeyColumns),
+			wantErr: common.NewNoTablesOrColumnsError(),
 		},
 		{
-			name: "success_keyColumns_starts_with_space",
+			name: "failure_mismatched_tables_and_columns",
 			in: &Config{
 				Configuration: common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id", "name "},
+					DSN: testValueDSN,
 				},
-				OrderingColumn: "id",
-				BatchSize:      1,
+				Tables:          []string{"test_table1", "test_table2"},
+				OrderingColumns: []string{"id"},
+				BatchSize:       1000,
 			},
-			wantErr: common.NewExcludesSpacesError(ConfigKeyColumns),
-		},
-		{
-			name: "success_keyColumns_has_two_spaces",
-			in: &Config{
-				Configuration: common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id", "  name"},
-				},
-				OrderingColumn: "id",
-				BatchSize:      1,
-			},
-			wantErr: common.NewExcludesSpacesError(ConfigKeyColumns),
-		},
-		{
-			name: "failure_table_has_space",
-			in: &Config{
-				Configuration: common.Configuration{
-					DSN:   testValueDSN,
-					Table: "test table",
-				},
-				OrderingColumn: "id",
-				BatchSize:      1,
-			},
-			wantErr: common.NewExcludesSpacesError(ConfigTable),
+			wantErr: common.NewMismatchedTablesAndColumnsError(2, 1),
 		},
 		{
 			name: "failure_table_has_uppercase_letter",
 			in: &Config{
 				Configuration: common.Configuration{
-					DSN:   testValueDSN,
-					Table: "Test_table",
+					DSN: testValueDSN,
 				},
-				OrderingColumn: "id",
-				BatchSize:      1,
+				Tables:          []string{"Test_table"},
+				OrderingColumns: []string{"id"},
+				BatchSize:       1000,
 			},
-			wantErr: common.NewLowercaseError(ConfigTable),
+			wantErr: common.NewLowercaseError("table[0]"),
 		},
 		{
-			name: "failure_keyColumns_has_uppercase_letter",
+			name: "failure_table_has_space",
 			in: &Config{
 				Configuration: common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"ID"},
+					DSN: testValueDSN,
 				},
-				OrderingColumn: "id",
-				BatchSize:      1,
+				Tables:          []string{"test table"},
+				OrderingColumns: []string{"id"},
+				BatchSize:       1000,
 			},
-			wantErr: common.NewLowercaseError(ConfigKeyColumns),
-		},
-		{
-			name: "failure_keyColumns_exceeds_max_length",
-			in: &Config{
-				Configuration: common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{testLongString},
-				},
-				OrderingColumn: "id",
-				BatchSize:      1,
-			},
-			wantErr: common.NewLessThanError(ConfigKeyColumns, common.MaxConfigStringLength),
+			wantErr: common.NewExcludesSpacesError("table[0]"),
 		},
 		{
 			name: "failure_table_exceeds_max_length",
 			in: &Config{
 				Configuration: common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testLongString,
-					KeyColumns: []string{"id"},
+					DSN: testValueDSN,
 				},
-				OrderingColumn: "id",
-				BatchSize:      1,
+				Tables:          []string{testLongString},
+				OrderingColumns: []string{"id"},
+				BatchSize:       1000,
 			},
-			wantErr: common.NewLessThanError(ConfigTable, common.MaxConfigStringLength),
+			wantErr: common.NewLessThanError("table[0]", common.MaxConfigStringLength),
 		},
 		{
 			name: "failure_ordering_column_has_uppercase_letter",
 			in: &Config{
 				Configuration: common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id"},
+					DSN: testValueDSN,
 				},
-				OrderingColumn: "ID",
-				BatchSize:      1,
+				Tables:          []string{"test_table"},
+				OrderingColumns: []string{"ID"},
+				BatchSize:       1000,
 			},
-			wantErr: common.NewLowercaseError(ConfigOrderingColumn),
+			wantErr: common.NewLowercaseError("orderingColumn[0]"),
 		},
 		{
 			name: "failure_ordering_column_has_space",
 			in: &Config{
 				Configuration: common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id"},
+					DSN: testValueDSN,
 				},
-				OrderingColumn: " id",
-				BatchSize:      1,
+				Tables:          []string{"test_table"},
+				OrderingColumns: []string{" id"},
+				BatchSize:       1000,
 			},
-			wantErr: common.NewExcludesSpacesError(ConfigOrderingColumn),
+			wantErr: common.NewExcludesSpacesError("orderingColumn[0]"),
 		},
 		{
 			name: "failure_ordering_column_exceeds_max_length",
 			in: &Config{
 				Configuration: common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id"},
+					DSN: testValueDSN,
 				},
-				OrderingColumn: testLongString,
-				BatchSize:      1,
+				Tables:          []string{"test_table"},
+				OrderingColumns: []string{testLongString},
+				BatchSize:       1000,
 			},
-			wantErr: common.NewLessThanError(ConfigOrderingColumn, common.MaxConfigStringLength),
+			wantErr: common.NewLessThanError("orderingColumn[0]", common.MaxConfigStringLength),
 		},
 		{
 			name: "failure_batch_size_less_than_min_value",
 			in: &Config{
 				Configuration: common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id"},
+					DSN: testValueDSN,
 				},
-				OrderingColumn: "id",
-				BatchSize:      0,
+				Tables:          []string{"test_table"},
+				OrderingColumns: []string{"id"},
+				BatchSize:       0,
 			},
 			wantErr: common.NewGreaterThanError(ConfigBatchSize, common.MinConfigBatchSize),
 		},
@@ -220,12 +170,11 @@ func TestValidateConfig(t *testing.T) {
 			name: "failure_batch_size_greater_than_max_value",
 			in: &Config{
 				Configuration: common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id"},
+					DSN: testValueDSN,
 				},
-				OrderingColumn: "id",
-				BatchSize:      100001,
+				Tables:          []string{"test_table"},
+				OrderingColumns: []string{"id"},
+				BatchSize:       100001,
 			},
 			wantErr: common.NewLessThanError(ConfigBatchSize, common.MaxConfigBatchSize),
 		},

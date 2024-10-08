@@ -258,9 +258,6 @@ func TestDestination_Write_successKeyColumns(t *testing.T) {
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
-	// set a KeyColumns field to the config
-	cfg[config.ConfigKeyColumns] = "col1"
-
 	dest := NewDestination()
 
 	err = dest.Configure(ctx, cfg)
@@ -351,9 +348,6 @@ func TestDestination_Write_failedWrongKeyColumnsField(t *testing.T) {
 
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTable]))
 	is.NoErr(err)
-
-	// set a wrong KeyColumns field to the config
-	cfg[config.ConfigKeyColumns] = "wrong_column"
 
 	dest := NewDestination()
 

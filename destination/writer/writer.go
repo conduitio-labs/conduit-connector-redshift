@@ -30,7 +30,7 @@ import (
 
 const (
 	// metadataFieldTable is a name of a record metadata field that stores a Redshift table name.
-	metadataFieldTable = "redshift.table"
+	metadataFieldTable = "opencdc.collection"
 	// keySearchPath is a key of get parameter of a datatable's schema name.
 	keySearchPath = "search_path"
 	// pingTimeout is a database ping timeout.
@@ -50,8 +50,7 @@ func NewWriter(ctx context.Context, driverName string, config config.Config) (*W
 	var err error
 
 	writer := &Writer{
-		table:      config.Table,
-		keyColumns: config.KeyColumns,
+		table: config.Table,
 	}
 
 	writer.db, err = sqlx.Open(driverName, config.DSN)

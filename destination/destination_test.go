@@ -53,12 +53,10 @@ func TestDestination_Configure_Fail(t *testing.T) {
 
 	d := NewDestination()
 
-	err := d.Configure(context.Background(), map[string]string{
-		config.ConfigDsn: testDSN,
-	})
+	err := d.Configure(context.Background(), map[string]string{})
 	is.True(err != nil)
 	is.Equal(err.Error(),
-		`config invalid: error validating "table": required parameter is not provided`)
+		`config invalid: error validating "dsn": required parameter is not provided`)
 }
 
 func TestDestination_Write_Success(t *testing.T) {
