@@ -8,12 +8,11 @@ import (
 )
 
 const (
-	ConfigBatchSize      = "batchSize"
-	ConfigDsn            = "dsn"
-	ConfigKeyColumns     = "keyColumns"
-	ConfigOrderingColumn = "orderingColumn"
-	ConfigSnapshot       = "snapshot"
-	ConfigTable          = "table"
+	ConfigBatchSize       = "batchSize"
+	ConfigDsn             = "dsn"
+	ConfigOrderingColumns = "orderingColumns"
+	ConfigSnapshot        = "snapshot"
+	ConfigTables          = "tables"
 )
 
 func (Config) Parameters() map[string]config.Parameter {
@@ -32,15 +31,9 @@ func (Config) Parameters() map[string]config.Parameter {
 				config.ValidationRequired{},
 			},
 		},
-		ConfigKeyColumns: {
+		ConfigOrderingColumns: {
 			Default:     "",
-			Description: "KeyColumns is the configuration list of column names to build the opencdc.Record.Key (for Source).",
-			Type:        config.ParameterTypeString,
-			Validations: []config.Validation{},
-		},
-		ConfigOrderingColumn: {
-			Default:     "",
-			Description: "OrderingColumn is a name of a column that the connector will use for ordering rows.",
+			Description: "OrderingColumns is a list of corresponding ordering columns for the table\nthat the connector will use for ordering rows.",
 			Type:        config.ParameterTypeString,
 			Validations: []config.Validation{
 				config.ValidationRequired{},
@@ -52,9 +45,9 @@ func (Config) Parameters() map[string]config.Parameter {
 			Type:        config.ParameterTypeBool,
 			Validations: []config.Validation{},
 		},
-		ConfigTable: {
+		ConfigTables: {
 			Default:     "",
-			Description: "Table is the configuration of the table name.",
+			Description: "Tables is a list of table names.",
 			Type:        config.ParameterTypeString,
 			Validations: []config.Validation{
 				config.ValidationRequired{},

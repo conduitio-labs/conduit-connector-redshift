@@ -17,6 +17,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/common"
@@ -25,8 +26,11 @@ import (
 // Config contains source-specific configurable values.
 type Config struct {
 	common.Configuration
-	// OrderingColumn is a name of a column that the connector will use for ordering rows.
-	OrderingColumn string `json:"orderingColumn" validate:"required"`
+	// Tables is a list of table names to pull data from.
+	Tables []string `json:"tables" validate:"required"`
+	// OrderingColumns is a list of corresponding ordering columns for the table
+	// that the connector will use for ordering rows.
+	OrderingColumns []string `json:"orderingColumns" validate:"required"`
 	// Snapshot is the configuration that determines whether the connector
 	// will take a snapshot of the entire table before starting cdc mode.
 	Snapshot bool `json:"snapshot" default:"true"`
@@ -38,40 +42,41 @@ type Config struct {
 func (c *Config) Validate() error {
 	// c.DSN has required validation handled in struct tag.
 
-	// c.Table required validation is handled in stuct tag
-	// handling "lowercase", "excludesall= " and "lte=127" validations.
-	if c.Table != strings.ToLower(c.Table) {
-		return common.NewLowercaseError(ConfigTable)
-	}
-	if strings.Contains(c.Table, " ") {
-		return common.NewExcludesSpacesError(ConfigTable)
-	}
-	if len(c.Table) > common.MaxConfigStringLength {
-		return common.NewLessThanError(ConfigTable, common.MaxConfigStringLength)
+	// Ensure there is at least one table and one corresponding ordering column.
+	if len(c.Tables) == 0 || len(c.OrderingColumns) == 0 {
+		return common.NewNoTablesOrColumnsError()
 	}
 
-	// c.KeyColumns handling "lowercase", "excludesall= " and "lte=127" validations.
-	for _, v := range c.KeyColumns {
-		if v != strings.ToLower(v) {
-			return common.NewLowercaseError(ConfigKeyColumns)
+	// Ensure that the number of tables and ordering columns match.
+	if len(c.Tables) != len(c.OrderingColumns) {
+		return common.NewMismatchedTablesAndColumnsError(len(c.Tables), len(c.OrderingColumns))
+	}
+
+	// c.Tables required validation is handled in stuct tag
+	// handling "lowercase", "excludesall= " and "lte=127" validations.
+	for i, table := range c.Tables {
+		if table != strings.ToLower(table) {
+			return common.NewLowercaseError(fmt.Sprintf("table[%d]", i))
 		}
-		if strings.Contains(v, " ") {
-			return common.NewExcludesSpacesError(ConfigKeyColumns)
+		if strings.Contains(table, " ") {
+			return common.NewExcludesSpacesError(fmt.Sprintf("table[%d]", i))
 		}
-		if len(v) > common.MaxConfigStringLength {
-			return common.NewLessThanError(ConfigKeyColumns, common.MaxConfigStringLength)
+		if len(table) > common.MaxConfigStringLength {
+			return common.NewLessThanError(fmt.Sprintf("table[%d]", i), common.MaxConfigStringLength)
 		}
 	}
 
 	// c.OrderingColumn handling "lowercase", "excludesall= " and "lte=127" validations.
-	if c.OrderingColumn != strings.ToLower(c.OrderingColumn) {
-		return common.NewLowercaseError(ConfigOrderingColumn)
-	}
-	if strings.Contains(c.OrderingColumn, " ") {
-		return common.NewExcludesSpacesError(ConfigOrderingColumn)
-	}
-	if len(c.OrderingColumn) > common.MaxConfigStringLength {
-		return common.NewLessThanError(ConfigOrderingColumn, common.MaxConfigStringLength)
+	for i, col := range c.OrderingColumns {
+		if col != strings.ToLower(col) {
+			return common.NewLowercaseError(fmt.Sprintf("orderingColumn[%d]", i))
+		}
+		if strings.Contains(col, " ") {
+			return common.NewExcludesSpacesError(fmt.Sprintf("orderingColumn[%d]", i))
+		}
+		if len(col) > common.MaxConfigStringLength {
+			return common.NewLessThanError(fmt.Sprintf("orderingColumn[%d]", i), common.MaxConfigStringLength)
+		}
 	}
 
 	// c.BatchSize handling "gte=1" and "lte=100000" validations.
@@ -83,4 +88,14 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+func (c *Config) GetTableOrderingMap() map[string]string {
+	tableOrderingMap := make(map[string]string)
+
+	for i := range c.Tables {
+		tableOrderingMap[c.Tables[i]] = c.OrderingColumns[i]
+	}
+
+	return tableOrderingMap
 }

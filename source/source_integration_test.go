@@ -88,11 +88,11 @@ func TestSource_Read_tableHasNoData(t *testing.T) {
 	err = db.PingContext(ctxTimeout)
 	is.NoErr(err)
 
-	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col INTEGER, PRIMARY KEY (col));", cfg[config.ConfigTable]))
+	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col INTEGER, PRIMARY KEY (col));", cfg[config.ConfigTables]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTables]))
 		is.NoErr(err)
 	}()
 
@@ -132,15 +132,15 @@ func TestSource_Read_keyColumnsFromConfig(t *testing.T) {
 	err = db.PingContext(ctxTimeout)
 	is.NoErr(err)
 
-	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.ConfigTable]))
+	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.ConfigTables]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTables]))
 		is.NoErr(err)
 	}()
 
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTable]))
+	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTables]))
 	is.NoErr(err)
 
 	src := NewSource()
@@ -185,15 +185,15 @@ func TestSource_Read_keyColumnsFromTableMetadata(t *testing.T) {
 
 	_, err = db.Exec(fmt.Sprintf(
 		"CREATE TABLE %s (col1 INTEGER, col2 INTEGER, col3 INTEGER, PRIMARY KEY (col1, col2, col3));",
-		cfg[config.ConfigTable]))
+		cfg[config.ConfigTables]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTables]))
 		is.NoErr(err)
 	}()
 
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2, 3);", cfg[config.ConfigTable]))
+	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2, 3);", cfg[config.ConfigTables]))
 	is.NoErr(err)
 
 	src := NewSource()
@@ -237,15 +237,15 @@ func TestSource_Read_keyColumnsFromOrderingColumn(t *testing.T) {
 	err = db.PingContext(ctxTimeout)
 	is.NoErr(err)
 
-	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.ConfigTable]))
+	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.ConfigTables]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTables]))
 		is.NoErr(err)
 	}()
 
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTable]))
+	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTables]))
 	is.NoErr(err)
 
 	src := NewSource()
@@ -331,11 +331,11 @@ func TestSource_Read_checkTypes(t *testing.T) {
 		time_type         time,
 		time_tz_type      timetz,
 		varbyte_type      varbyte
-	);`, cfg[config.ConfigTable]))
+	);`, cfg[config.ConfigTables]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTables]))
 		is.NoErr(err)
 	}()
 
@@ -366,7 +366,7 @@ func TestSource_Read_checkTypes(t *testing.T) {
 	}
 
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16);",
-		cfg[config.ConfigTable]),
+		cfg[config.ConfigTables]),
 		want.SmallIntType,
 		want.IntegerType,
 		want.BigIntType,
@@ -446,16 +446,16 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 	err = db.PingContext(ctxTimeout)
 	is.NoErr(err)
 
-	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.ConfigTable]))
+	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.ConfigTables]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTables]))
 		is.NoErr(err)
 	}()
 
 	// insert a row to be sure that this data will not be transferred to the destination
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTable]))
+	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTables]))
 	is.NoErr(err)
 
 	src := NewSource()
@@ -470,7 +470,7 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 	is.Equal(err, sdk.ErrBackoffRetry)
 
 	// insert an additional row
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (3, 4);", cfg[config.ConfigTable]))
+	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (3, 4);", cfg[config.ConfigTables]))
 	is.NoErr(err)
 
 	record, err := src.Read(ctx)
@@ -491,7 +491,7 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 
 // prepareConfig retrieves the value of the environment variable named by envNameDSN,
 // generates a name of database's table and returns a configuration map.
-func prepareConfig(t *testing.T, orderingColumn string, keyColumns ...string) map[string]string {
+func prepareConfig(t *testing.T, orderingColumn string, _ ...string) map[string]string {
 	t.Helper()
 
 	dsn := os.Getenv(envNameDSN)
@@ -502,9 +502,8 @@ func prepareConfig(t *testing.T, orderingColumn string, keyColumns ...string) ma
 	}
 
 	return map[string]string{
-		config.ConfigDsn:            dsn,
-		config.ConfigTable:          fmt.Sprintf("conduit_src_test_%d", time.Now().UnixNano()),
-		config.ConfigOrderingColumn: orderingColumn,
-		config.ConfigKeyColumns:     strings.Join(keyColumns, ","),
+		config.ConfigDsn:             dsn,
+		config.ConfigTables:          fmt.Sprintf("conduit_src_test_%d", time.Now().UnixNano()),
+		config.ConfigOrderingColumns: orderingColumn,
 	}
 }

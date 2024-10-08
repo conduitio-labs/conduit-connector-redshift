@@ -40,19 +40,19 @@ func TestSource_Configure_requiredFieldsSuccess(t *testing.T) {
 	s := Source{}
 
 	err := s.Configure(context.Background(), map[string]string{
-		config.ConfigDsn:            testDSN,
-		config.ConfigTable:          testTable,
-		config.ConfigOrderingColumn: "created_at",
+		config.ConfigDsn:             testDSN,
+		config.ConfigTables:          testTable,
+		config.ConfigOrderingColumns: "created_at",
 	})
 	is.NoErr(err)
 	is.Equal(s.config, config.Config{
 		Configuration: common.Configuration{
-			DSN:   testDSN,
-			Table: testTable,
+			DSN: testDSN,
 		},
-		OrderingColumn: "created_at",
-		Snapshot:       true,
-		BatchSize:      1000,
+		Tables:          []string{testTable},
+		OrderingColumns: []string{"created_at"},
+		Snapshot:        true,
+		BatchSize:       1000,
 	})
 }
 
@@ -64,23 +64,21 @@ func TestSource_Configure_allFieldsSuccess(t *testing.T) {
 	s := Source{}
 
 	err := s.Configure(context.Background(), map[string]string{
-		config.ConfigDsn:            testDSN,
-		config.ConfigTable:          testTable,
-		config.ConfigOrderingColumn: "created_at",
-		config.ConfigSnapshot:       "false",
-		config.ConfigKeyColumns:     "id,name",
-		config.ConfigBatchSize:      "10000",
+		config.ConfigDsn:             testDSN,
+		config.ConfigTables:          testTable,
+		config.ConfigOrderingColumns: "created_at",
+		config.ConfigSnapshot:        "false",
+		config.ConfigBatchSize:       "10000",
 	})
 	is.NoErr(err)
 	is.Equal(s.config, config.Config{
 		Configuration: common.Configuration{
-			DSN:        testDSN,
-			Table:      testTable,
-			KeyColumns: []string{"id", "name"},
+			DSN: testDSN,
 		},
-		OrderingColumn: "created_at",
-		Snapshot:       false,
-		BatchSize:      10000,
+		Tables:          []string{testTable},
+		OrderingColumns: []string{"created_at"},
+		Snapshot:        false,
+		BatchSize:       10000,
 	})
 }
 
@@ -92,11 +90,11 @@ func TestSource_Configure_failure(t *testing.T) {
 	s := Source{}
 
 	err := s.Configure(context.Background(), map[string]string{
-		config.ConfigDsn:   testDSN,
-		config.ConfigTable: testTable,
+		config.ConfigDsn:    testDSN,
+		config.ConfigTables: testTable,
 	})
 	is.True(err != nil)
-	is.Equal(err.Error(), `config invalid: error validating "orderingColumn": required parameter is not provided`)
+	is.Equal(err.Error(), `config invalid: error validating "orderingColumns": required parameter is not provided`)
 }
 
 func TestSource_Read_success(t *testing.T) {

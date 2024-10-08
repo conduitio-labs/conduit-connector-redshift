@@ -23,6 +23,10 @@ import (
 
 // Position represents Redshift's position.
 type Position struct {
+	TablePositions map[string]TablePosition `json:"tablePositions"`
+}
+
+type TablePosition struct {
 	// LastProcessedValue represents the last processed value from ordering column.
 	LastProcessedValue any `json:"lastProcessedValue"`
 	// LatestSnapshotValue represents the most recent value of ordering column.

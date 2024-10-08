@@ -36,7 +36,7 @@ const (
 	// envNameDSN is a Redshift dsn environment name.
 	envNameDSN = "REDSHIFT_DSN"
 	// metadataFieldTable is a name of a record metadata field that stores a Redshift table name.
-	metadataFieldTable = "redshift.table"
+	metadataFieldTable = "opencdc.collection"
 )
 
 type driver struct {
@@ -53,7 +53,7 @@ func (d *driver) GenerateRecord(_ *testing.T, operation opencdc.Operation) openc
 		Position:  nil,
 		Operation: operation,
 		Metadata: map[string]string{
-			metadataFieldTable: d.Config.SourceConfig[srcConfig.ConfigTable],
+			metadataFieldTable: d.Config.SourceConfig[srcConfig.ConfigTables],
 		},
 		Key: opencdc.StructuredData{
 			"col1": d.id,
@@ -71,9 +71,9 @@ func TestAcceptance(t *testing.T) {
 	}
 
 	cfg := map[string]string{
-		srcConfig.ConfigDsn:            dsn,
-		srcConfig.ConfigTable:          fmt.Sprintf("conduit_test_%d", time.Now().UnixNano()),
-		srcConfig.ConfigOrderingColumn: "col1",
+		srcConfig.ConfigDsn:             dsn,
+		srcConfig.ConfigTables:          fmt.Sprintf("conduit_test_%d", time.Now().UnixNano()),
+		srcConfig.ConfigOrderingColumns: "col1",
 	}
 
 	sdk.AcceptanceTest(t, &driver{

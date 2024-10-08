@@ -21,15 +21,15 @@ to the environment variables as an `REDSHIFT_DSN`.
 
 ## Source
 
-Conduit's Redshift source connector allows you to move data from a Redshift table with the specified `dsn` and `table`
-configuration parameters. Upon starting, the source connector takes a snapshot of a given table in the database, then 
+Conduit's Redshift source connector allows you to move data from multiple Redshift tables with the specified `dsn` and `tables`
+configuration parameters. Upon starting, the source connector takes a snapshot the tables in the database, then 
 switches into change data capture (CDC) mode. In CDC mode, the connector will only detect new rows.
 
 ### Snapshots
 
-At the first launch of the connector, the snapshot mode is enabled and the last value of the `orderingColumn` is stored
+At the first launch of the connector, the snapshot mode is enabled and the last value of the `orderingColumn` corresponding to a table is stored
 to the position, to know the boundary of this mode. The connector reads all rows of a table in batches, using a
-keyset pagination, limiting the rows by `batchSize` and ordering by `orderingColumn`. The connector stores the
+keyset pagination, limiting the rows by `batchSize` and ordering by `orderingColumn` and then does the same for other tables. The connector stores the
 last processed element value of an `orderingColumn` in a position, so the snapshot process can be paused and resumed
 without losing data. Once all rows in that initial snapshot are read the connector switches into CDC mode.
 
@@ -45,10 +45,9 @@ pagination, limiting by `batchSize` and ordering by `orderingColumn`.
 | name             | description                                                                                                                                                                | required | example                                               | default value |
 |------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|-------------------------------------------------------|---------------|
 | `dsn`            | [DSN](https://en.wikipedia.org/wiki/Data_source_name) to connect to Redshift.                                                                                              | **true** | `postgres://username:password@endpoint:5439/database` |               |
-| `table`          | Name of the table from which the connector reads from.                                                                                                                     | **true** | `table_name`                                          |               |
-| `orderingColumn` | Column used to order the rows. <br /> Keep in mind that the data will be sorted by this column, so the column must contain unique, consistent values suitable for sorting. | **true** | `id`                                                  |               |
+| `tables`          | Name of the tables from which the connector reads from.                                                                                                                     | **true** | `table1,table2`                                          |               |
+| `orderingColumns` | Corresponding Columns for the tables used to order the rows. <br /> Keep in mind that the data will be sorted by this column, so the column must contain unique, consistent values suitable for sorting. | **true** | `id,created_at`                                                  |               |
 | `snapshot`       | Whether the connector will take a snapshot of the entire table before starting cdc mode.                                                                                   | false    | `false`                                               | "true"        |
-| `keyColumns`     | Comma-separated list of column names to build the `sdk.Record.Key`. See more: [Key handling](#key-handling).                                                               | false    | `id,name`                                             |               |
 | `batchSize`      | Size of rows batch. Min is 1 and max is 100000.                                                                                                                            | false    | `100`                                                 | "1000"        |
 
 ### Key handling
@@ -60,7 +59,7 @@ of `sdk.Record.Key` field are taken from `sdk.Payload.After` by the keys of this
 
 ### Table Name
 
-For each record, the connector adds a `redshift.table` property to the metadata that contains the table name.
+For each record, the connector adds a `opencdc.collection` property to the metadata that contains the table name.
 
 ## Destination
 
@@ -74,8 +73,7 @@ configuration parameters. It takes an `sdk.Record` and parses it into a valid SQ
 | name         | description                                                                                                                                           | required | example                                               | default |
 |--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|----------|-------------------------------------------------------|---------|
 | `dsn`        | [DSN](https://en.wikipedia.org/wiki/Data_source_name) to connect to Redshift.                                                                         | **true** | `postgres://username:password@endpoint:5439/database` | ""      |
-| `table`      | Name of the table the connector writes to.                                                                                                            | **true** | `table_name`                                          | ""      |
-| `keyColumns` | Comma-separated list of column names to build the where clause in case if `sdk.Record.Key` is empty.<br /> See more: [Key handling](#key-handling-1). | false    | `id,name`                                             | ""      |
+| `table`      | Name of the table the connector writes to.                                                                                                            | **false** | `table_name`                                          | "{{ index .Metadata "opencdc.collection" }}"      |
 
 ### Key handling
 
@@ -88,7 +86,7 @@ configuration parameters. It takes an `sdk.Record` and parses it into a valid SQ
 
 ### Table Name
 
-Records are written to the table specified by the `redshift.table` property in the metadata, if it exists.
+Records are written to the table specified by the `opencdc.collection` property in the metadata, if it exists.
 If not, the connector will fall back to the `table` configured in the connector.
 
 ## Known limitations
