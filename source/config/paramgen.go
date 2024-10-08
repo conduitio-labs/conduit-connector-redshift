@@ -47,7 +47,7 @@ func (Config) Parameters() map[string]config.Parameter {
 		},
 		ConfigTables: {
 			Default:     "",
-			Description: "Tables is a list of table names.",
+			Description: "Tables is a list of table names to pull data from.",
 			Type:        config.ParameterTypeString,
 			Validations: []config.Validation{
 				config.ValidationRequired{},
