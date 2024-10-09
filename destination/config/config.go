@@ -1,4 +1,4 @@
-// Copyright © 2022 Meroxa, Inc. & Yalantis
+// Copyright © 2024 Meroxa, Inc. & Yalantis
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,27 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate paramgen -output=paramgen.go Config
+
 package config
 
 import (
-	"fmt"
+	"github.com/conduitio-labs/conduit-connector-redshift/common"
 )
 
-// Destination is a destination configuration needed to connect to Redshift database.
-type Destination struct {
-	Configuration
+// Config is a destination configuration needed to connect to Redshift database.
+type Config struct {
+	common.Configuration
 }
 
-// ParseDestination parses a destination configuration.
-func ParseDestination(cfg map[string]string) (Destination, error) {
-	config, err := parseCommon(cfg)
-	if err != nil {
-		return Destination{}, fmt.Errorf("parse common config: %w", err)
-	}
-
-	destinationConfig := Destination{
-		Configuration: config,
-	}
-
-	return destinationConfig, nil
+// Validate executes manual validations beyond what is defined in struct tags.
+func (c *Config) Validate() error {
+	return c.Configuration.Validate() //nolint:wrapcheck // not needed here
 }

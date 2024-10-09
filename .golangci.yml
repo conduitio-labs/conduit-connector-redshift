@@ -1,23 +1,30 @@
+run:
+  timeout: 5m
+
 linters-settings:
-  gofmt:
-    simplify: false
-  govet:
-    check-shadowing: true
   nolintlint:
     allow-unused: false # report any unused nolint directives
     require-explanation: true # require an explanation for nolint directives
     require-specific: true # require nolint directives to mention the specific linter being suppressed
-  gocyclo:
-    min-complexity: 20
   goconst:
     ignore-tests: true
+  wrapcheck:
+    ignoreSigs:
+      - .Errorf(
+      - errors.New(
+      - errors.Unwrap(
+      - errors.Join(
+      - .Wrap(
+      - .Wrapf(
+      - .WithMessage(
+      - .WithMessagef(
+      - .WithStack(
+      - (context.Context).Err()
   goheader:
     template-path: '.golangci.goheader.template'
     values:
       regexp:
         copyright-year: 20[2-9]\d
-  lll:
-    line-length: 120
   forbidigo:
     forbid:
       - '^print.*'
@@ -29,22 +36,34 @@ linters:
   # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
   disable-all: true
   enable:
+    - asasalint
+    - asciicheck
+    - bidichk
     - bodyclose
+    - containedctx
+    - contextcheck
+    - copyloopvar
+    - decorder
     # - depguard
     - dogsled
+    - dupl
+    - dupword
     - durationcheck
     - errcheck
+    - errchkjson
     - errname
     - errorlint
     - exhaustive
-    - exportloopref
-    - forbidigo
+    # - forbidigo
     - forcetypeassert
     - funlen
+    - gci
+    - ginkgolinter
+    - gocheckcompilerdirectives
     - gochecknoinits
+    - gocognit
     - goconst
     - gocritic
-    - gocyclo
     - godot
     - godox
     - gofmt
@@ -52,16 +71,17 @@ linters:
     - goheader
     - goimports
     - revive
-    - gomnd
+    - mnd
     - gomoddirectives
     - gomodguard
     - goprintffuncname
+    - gosmopolitan
     - gosec
     - gosimple
     - govet
     - ineffassign
+    - interfacebloat
     - importas
-    - lll
     - misspell
     - makezero
     - nakedret
@@ -75,7 +95,7 @@ linters:
     - rowserrcheck
     - staticcheck
     - stylecheck
-    - sqlclosecheck
+    # - sqlclosecheck
     - tagliatelle
     - tenv
     - thelper
@@ -87,6 +107,15 @@ linters:
     - wastedassign
     - whitespace
     - wrapcheck
+    - loggercheck
+    - mirror
+    - musttag
+    - nosprintfhostport
+    - promlinter
+    - reassign
+    - testableexamples
+    - usestdlibvars
+    - zerologlint
 
     # deprecated linters:
     # - varcheck

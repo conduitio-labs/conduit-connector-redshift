@@ -18,7 +18,7 @@ import (
 	"errors"
 	"testing"
 
-	sdk "github.com/conduitio/conduit-connector-sdk"
+	"github.com/conduitio/conduit-commons/opencdc"
 	"github.com/matryer/is"
 )
 
@@ -27,7 +27,7 @@ func TestParseSDKPosition(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		in      sdk.Position
+		in      opencdc.Position
 		wantPos Position
 		wantErr error
 	}{
@@ -38,7 +38,7 @@ func TestParseSDKPosition(t *testing.T) {
 		},
 		{
 			name: "success_float64_fields",
-			in: sdk.Position(`{
+			in: opencdc.Position(`{
 			   "lastProcessedValue":10,
 			   "latestSnapshotValue":30
 			}`),
@@ -49,7 +49,7 @@ func TestParseSDKPosition(t *testing.T) {
 		},
 		{
 			name: "success_string_fields",
-			in: sdk.Position(`{
+			in: opencdc.Position(`{
 			   "lastProcessedValue":"abc",
 			   "latestSnapshotValue":"def"
 			}`),
@@ -60,7 +60,7 @@ func TestParseSDKPosition(t *testing.T) {
 		},
 		{
 			name: "success_lastProcessedValue_only",
-			in: sdk.Position(`{
+			in: opencdc.Position(`{
 			   "lastProcessedValue":10
 			}`),
 			wantPos: Position{
@@ -69,7 +69,7 @@ func TestParseSDKPosition(t *testing.T) {
 		},
 		{
 			name: "success_latestSnapshotValue_only",
-			in: sdk.Position(`{
+			in: opencdc.Position(`{
 			   "latestSnapshotValue":30
 			}`),
 			wantPos: Position{
@@ -78,15 +78,13 @@ func TestParseSDKPosition(t *testing.T) {
 		},
 		{
 			name: "failure_required_dsn_and_table",
-			in:   sdk.Position("invalid"),
-			wantErr: errors.New("unmarshal sdk.Position into Position: " +
+			in:   opencdc.Position("invalid"),
+			wantErr: errors.New("unmarshal opencdc.Position into Position: " +
 				"invalid character 'i' looking for beginning of value"),
 		},
 	}
 
 	for _, tt := range tests {
-		tt := tt
-
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			is := is.New(t)
@@ -109,12 +107,12 @@ func TestMarshal(t *testing.T) {
 	tests := []struct {
 		name string
 		in   Position
-		want sdk.Position
+		want opencdc.Position
 	}{
 		{
 			name: "success_position_is_nil",
 			in:   Position{},
-			want: sdk.Position(`{"lastProcessedValue":null,"latestSnapshotValue":null}`),
+			want: opencdc.Position(`{"lastProcessedValue":null,"latestSnapshotValue":null}`),
 		},
 		{
 			name: "success_integer_fields",
@@ -122,7 +120,7 @@ func TestMarshal(t *testing.T) {
 				LastProcessedValue:  10,
 				LatestSnapshotValue: 30,
 			},
-			want: sdk.Position(`{"lastProcessedValue":10,"latestSnapshotValue":30}`),
+			want: opencdc.Position(`{"lastProcessedValue":10,"latestSnapshotValue":30}`),
 		},
 		{
 			name: "success_string_fields",
@@ -130,27 +128,24 @@ func TestMarshal(t *testing.T) {
 				LastProcessedValue:  "abc",
 				LatestSnapshotValue: "def",
 			},
-			want: sdk.Position(`{"lastProcessedValue":"abc","latestSnapshotValue":"def"}`),
+			want: opencdc.Position(`{"lastProcessedValue":"abc","latestSnapshotValue":"def"}`),
 		},
 		{
 			name: "success_lastProcessedValue_only",
 			in: Position{
 				LastProcessedValue: float64(10),
 			},
-			want: sdk.Position(`{"lastProcessedValue":10,"latestSnapshotValue":null}`),
+			want: opencdc.Position(`{"lastProcessedValue":10,"latestSnapshotValue":null}`),
 		},
 		{
 			name: "success_latestSnapshotValue_only",
 			in: Position{
 				LatestSnapshotValue: float64(30),
 			},
-			want: sdk.Position(`{"lastProcessedValue":null,"latestSnapshotValue":30}`),
+			want: opencdc.Position(`{"lastProcessedValue":null,"latestSnapshotValue":30}`),
 		},
 	}
-
 	for _, tt := range tests {
-		tt := tt
-
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			is := is.New(t)
