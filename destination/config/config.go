@@ -1,4 +1,4 @@
-// Copyright © 2022 Meroxa, Inc. & Yalantis
+// Copyright © 2024 Meroxa, Inc. & Yalantis
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,8 +17,6 @@
 package config
 
 import (
-	"strings"
-
 	"github.com/conduitio-labs/conduit-connector-redshift/common"
 )
 
@@ -29,32 +27,5 @@ type Config struct {
 
 // Validate executes manual validations beyond what is defined in struct tags.
 func (c *Config) Validate() error {
-	// c.DSN has required validation handled in struct tag
-
-	// c.Table required validation is handled in stuct tag
-	// handling "lowercase", "excludesall= " and "lte=127" validations
-	if c.Table != strings.ToLower(c.Table) {
-		return common.NewLowercaseError(ConfigTable)
-	}
-	if strings.Contains(c.Table, " ") {
-		return common.NewExcludesSpacesError(ConfigTable)
-	}
-	if len(c.Table) > common.MaxConfigStringLength {
-		return common.NewLessThanError(ConfigTable, common.MaxConfigStringLength)
-	}
-
-	// c.KeyColumns handling "lowercase", "excludesall= " and "lte=127" validations
-	for _, v := range c.KeyColumns {
-		if v != strings.ToLower(v) {
-			return common.NewLowercaseError(ConfigKeyColumns)
-		}
-		if strings.Contains(v, " ") {
-			return common.NewExcludesSpacesError(ConfigKeyColumns)
-		}
-		if len(v) > common.MaxConfigStringLength {
-			return common.NewLessThanError(ConfigKeyColumns, common.MaxConfigStringLength)
-		}
-	}
-
-	return nil
+	return c.Configuration.Validate() //nolint:wrapcheck // not needed here
 }

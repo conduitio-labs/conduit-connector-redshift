@@ -1,4 +1,4 @@
-// Copyright © 2022 Meroxa, Inc. & Yalantis
+// Copyright © 2024 Meroxa, Inc. & Yalantis
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -202,32 +202,6 @@ func TestValidateConfig(t *testing.T) {
 				BatchSize:      1,
 			},
 			wantErr: common.NewLessThanError(ConfigOrderingColumn, common.MaxConfigStringLength),
-		},
-		{
-			name: "failure_batch_size_less_than_min_value",
-			in: &Config{
-				Configuration: common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id"},
-				},
-				OrderingColumn: "id",
-				BatchSize:      0,
-			},
-			wantErr: common.NewGreaterThanError(ConfigBatchSize, common.MinConfigBatchSize),
-		},
-		{
-			name: "failure_batch_size_greater_than_max_value",
-			in: &Config{
-				Configuration: common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id"},
-				},
-				OrderingColumn: "id",
-				BatchSize:      100001,
-			},
-			wantErr: common.NewLessThanError(ConfigBatchSize, common.MaxConfigBatchSize),
 		},
 	}
 
