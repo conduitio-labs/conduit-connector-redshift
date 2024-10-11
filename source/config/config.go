@@ -1,4 +1,4 @@
-// Copyright © 2022 Meroxa, Inc. & Yalantis
+// Copyright © 2024 Meroxa, Inc. & Yalantis
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ type Config struct {
 	// will take a snapshot of the entire table before starting cdc mode.
 	Snapshot bool `json:"snapshot" default:"true"`
 	// BatchSize is a size of rows batch.
-	BatchSize int `json:"batchSize" default:"1000"`
+	BatchSize int `json:"batchSize" default:"1000" validate:"gt=0,lt=100001"`
 }
 
 // Validate executes manual validations beyond what is defined in struct tags.
@@ -66,7 +66,8 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// c.OrderingColumn handling "lowercase", "excludesall= " and "lte=127" validations.
+	// c.OrderingColumns required validation is handled in stuct tag
+	// handling "lowercase", "excludesall= " and "lte=127" validations.
 	for i, col := range c.OrderingColumns {
 		if col != strings.ToLower(col) {
 			return common.NewLowercaseError(fmt.Sprintf("orderingColumn[%d]", i))
@@ -77,14 +78,6 @@ func (c *Config) Validate() error {
 		if len(col) > common.MaxConfigStringLength {
 			return common.NewLessThanError(fmt.Sprintf("orderingColumn[%d]", i), common.MaxConfigStringLength)
 		}
-	}
-
-	// c.BatchSize handling "gte=1" and "lte=100000" validations.
-	if c.BatchSize < common.MinConfigBatchSize {
-		return common.NewGreaterThanError(ConfigBatchSize, common.MinConfigBatchSize)
-	}
-	if c.BatchSize > common.MaxConfigBatchSize {
-		return common.NewLessThanError(ConfigBatchSize, common.MaxConfigBatchSize)
 	}
 
 	return nil

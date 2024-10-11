@@ -99,4 +99,4 @@ Creating a source or destination connector will fail in the next cases:
 ## Useful resources
 * [Quotas and limits in Amazon Redshift](https://docs.aws.amazon.com/redshift/latest/mgmt/amazon-redshift-limits.html)
 
-![scarf pixel](https://static.scarf.sh/a.png?x-pxid=617ebf4a-148c-44ad-8f64-6cc5780d34ae)
+![scarf pixel](https://static.scarf.sh/a.png?x-pxid=dc0e518d-385c-4e33-bd1c-6b4d2eaebb74)

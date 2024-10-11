@@ -1,4 +1,4 @@
-// Copyright © 2022 Meroxa, Inc. & Yalantis
+// Copyright © 2024 Meroxa, Inc. & Yalantis
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -154,30 +154,6 @@ func TestValidateConfig(t *testing.T) {
 			},
 			wantErr: common.NewLessThanError("orderingColumn[0]", common.MaxConfigStringLength),
 		},
-		{
-			name: "failure_batch_size_less_than_min_value",
-			in: &Config{
-				Configuration: common.Configuration{
-					DSN: testValueDSN,
-				},
-				Tables:          []string{"test_table"},
-				OrderingColumns: []string{"id"},
-				BatchSize:       0,
-			},
-			wantErr: common.NewGreaterThanError(ConfigBatchSize, common.MinConfigBatchSize),
-		},
-		{
-			name: "failure_batch_size_greater_than_max_value",
-			in: &Config{
-				Configuration: common.Configuration{
-					DSN: testValueDSN,
-				},
-				Tables:          []string{"test_table"},
-				OrderingColumns: []string{"id"},
-				BatchSize:       100001,
-			},
-			wantErr: common.NewLessThanError(ConfigBatchSize, common.MaxConfigBatchSize),
-		},
 	}
 
 	for _, tt := range tests {
@@ -194,4 +170,24 @@ func TestValidateConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetTableOrderingMap(t *testing.T) {
+	t.Parallel()
+
+	is := is.New(t)
+
+	config := &Config{
+		Tables:          []string{"table1", "table2"},
+		OrderingColumns: []string{"id1", "id2"},
+	}
+
+	expectedMap := map[string]string{
+		"table1": "id1",
+		"table2": "id2",
+	}
+
+	result := config.GetTableOrderingMap()
+
+	is.Equal(result, expectedMap)
 }

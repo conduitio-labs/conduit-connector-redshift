@@ -1,4 +1,4 @@
-// Copyright © 2022 Meroxa, Inc. & Yalantis
+// Copyright © 2024 Meroxa, Inc. & Yalantis
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@ package common
 
 const (
 	MaxConfigStringLength = 127
-	MinConfigBatchSize    = 1
-	MaxConfigBatchSize    = 100000
+	ConfigTable           = "table"
+	ConfigKeyColumns      = "keyColumns"
 )
 
 // Configuration contains common for source and destination configurable values.
