@@ -17,6 +17,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/common"
@@ -25,8 +26,11 @@ import (
 // Config contains source-specific configurable values.
 type Config struct {
 	common.Configuration
-	// OrderingColumn is a name of a column that the connector will use for ordering rows.
-	OrderingColumn string `json:"orderingColumn" validate:"required"`
+	// Tables is a list of table names to pull data from.
+	Tables []string `json:"tables" validate:"required"`
+	// OrderingColumns is a list of corresponding ordering columns for the table
+	// that the connector will use for ordering rows.
+	OrderingColumns []string `json:"orderingColumns" validate:"required"`
 	// Snapshot is the configuration that determines whether the connector
 	// will take a snapshot of the entire table before starting cdc mode.
 	Snapshot bool `json:"snapshot" default:"true"`
@@ -36,21 +40,55 @@ type Config struct {
 
 // Validate executes manual validations beyond what is defined in struct tags.
 func (c *Config) Validate() error {
-	err := c.Configuration.Validate()
-	if err != nil {
-		return err //nolint:wrapcheck // not needed here
+	// c.DSN has required validation handled in struct tag.
+
+	// Ensure there is at least one table and one corresponding ordering column.
+	if len(c.Tables) == 0 || len(c.OrderingColumns) == 0 {
+		return common.NewNoTablesOrColumnsError()
 	}
 
-	// c.OrderingColumn handling "lowercase", "excludesall= " and "lte=127" validations.
-	if c.OrderingColumn != strings.ToLower(c.OrderingColumn) {
-		return common.NewLowercaseError(ConfigOrderingColumn)
+	// Ensure that the number of tables and ordering columns match.
+	if len(c.Tables) != len(c.OrderingColumns) {
+		return common.NewMismatchedTablesAndColumnsError(len(c.Tables), len(c.OrderingColumns))
 	}
-	if strings.Contains(c.OrderingColumn, " ") {
-		return common.NewExcludesSpacesError(ConfigOrderingColumn)
+
+	// c.Tables required validation is handled in stuct tag
+	// handling "lowercase", "excludesall= " and "lte=127" validations.
+	for i, table := range c.Tables {
+		if table != strings.ToLower(table) {
+			return common.NewLowercaseError(fmt.Sprintf("table[%d]", i))
+		}
+		if strings.Contains(table, " ") {
+			return common.NewExcludesSpacesError(fmt.Sprintf("table[%d]", i))
+		}
+		if len(table) > common.MaxConfigStringLength {
+			return common.NewLessThanError(fmt.Sprintf("table[%d]", i), common.MaxConfigStringLength)
+		}
 	}
-	if len(c.OrderingColumn) > common.MaxConfigStringLength {
-		return common.NewLessThanError(ConfigOrderingColumn, common.MaxConfigStringLength)
+
+	// c.OrderingColumns required validation is handled in stuct tag
+	// handling "lowercase", "excludesall= " and "lte=127" validations.
+	for i, col := range c.OrderingColumns {
+		if col != strings.ToLower(col) {
+			return common.NewLowercaseError(fmt.Sprintf("orderingColumn[%d]", i))
+		}
+		if strings.Contains(col, " ") {
+			return common.NewExcludesSpacesError(fmt.Sprintf("orderingColumn[%d]", i))
+		}
+		if len(col) > common.MaxConfigStringLength {
+			return common.NewLessThanError(fmt.Sprintf("orderingColumn[%d]", i), common.MaxConfigStringLength)
+		}
 	}
 
 	return nil
+}
+
+func (c *Config) GetTableOrderingMap() map[string]string {
+	tableOrderingMap := make(map[string]string)
+
+	for i := range c.Tables {
+		tableOrderingMap[c.Tables[i]] = c.OrderingColumns[i]
+	}
+
+	return tableOrderingMap
 }

@@ -67,3 +67,26 @@ func (e GreaterThanError) Error() string {
 func NewGreaterThanError(fieldName string, value int) GreaterThanError {
 	return GreaterThanError{fieldName: fieldName, value: value}
 }
+
+type NoTablesOrColumnsError struct{}
+
+func (e NoTablesOrColumnsError) Error() string {
+	return "at least one table and one corresponding ordering column must be provided"
+}
+
+func NewNoTablesOrColumnsError() NoTablesOrColumnsError {
+	return NoTablesOrColumnsError{}
+}
+
+type MismatchedTablesAndColumnsError struct {
+	tablesCount          int
+	orderingColumnsCount int
+}
+
+func (e MismatchedTablesAndColumnsError) Error() string {
+	return fmt.Sprintf("the number of tables (%d) and ordering columns (%d) must match", e.tablesCount, e.orderingColumnsCount)
+}
+
+func NewMismatchedTablesAndColumnsError(tablesCount, orderingColumnsCount int) MismatchedTablesAndColumnsError {
+	return MismatchedTablesAndColumnsError{tablesCount: tablesCount, orderingColumnsCount: orderingColumnsCount}
+}
