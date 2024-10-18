@@ -1,6 +1,7 @@
 module github.com/conduitio-labs/conduit-connector-redshift
 
 go 1.21
+toolchain go1.22.5
 
 require (
 	github.com/conduitio/conduit-connector-sdk v0.8.0
@@ -10,7 +11,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/matryer/is v1.4.1
-	go.uber.org/mock v0.4.0
+	go.uber.org/mock v0.5.0
 	go.uber.org/multierr v1.11.0
 )
 
