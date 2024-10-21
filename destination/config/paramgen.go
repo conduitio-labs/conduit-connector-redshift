@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	ConfigDsn   = "dsn"
-	ConfigTable = "table"
+	ConfigDsn        = "dsn"
+	ConfigKeyColumns = "keyColumns"
+	ConfigTable      = "table"
 )
 
 func (Config) Parameters() map[string]config.Parameter {
@@ -22,9 +23,15 @@ func (Config) Parameters() map[string]config.Parameter {
 				config.ValidationRequired{},
 			},
 		},
-		ConfigTable: {
+		ConfigKeyColumns: {
 			Default:     "",
-			Description: "Table is used as the target table into which records are inserted.",
+			Description: "KeyColumns is the configuration of comma-separated column names to build the sdk.Record.Key.",
+			Type:        config.ParameterTypeString,
+			Validations: []config.Validation{},
+		},
+		ConfigTable: {
+			Default:     "{{ index .Metadata \"opencdc.collection\" }}",
+			Description: "Table is the configuration of the table name.",
 			Type:        config.ParameterTypeString,
 			Validations: []config.Validation{},
 		},

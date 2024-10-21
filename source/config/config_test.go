@@ -15,6 +15,7 @@
 package config
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/common"
@@ -23,6 +24,7 @@ import (
 
 const (
 	testValueDSN   = "postgres://username:password@endpoint:5439/database"
+	testValueTable = "test_table"
 	testLongString = `this_is_a_very_long_string_which_exceeds_max_config_string_limit_
 						abcdefghijklmnopqrstuvwxyz_zyxwvutsrqponmlkjihgfedcba_xxxxxxxx`
 )
@@ -32,127 +34,201 @@ func TestValidateConfig(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		in      *Config
+		in      Config
 		wantErr error
 	}{
 		{
-			name: "success",
-			in: &Config{
+			name: "success_single_table_config",
+			in: Config{
 				Configuration: common.Configuration{
 					DSN: testValueDSN,
 				},
-				Tables:          []string{"test_table1", "test_table2"},
-				OrderingColumns: []string{"id1", "id2"},
-				Snapshot:        true,
-				BatchSize:       1000,
+				Tables: map[string]TableConfig{
+					"test_table": {
+						KeyColumns:     []string{"id"},
+						OrderingColumn: "id",
+					},
+				},
+				BatchSize: 1000,
+				Snapshot:  true,
 			},
-			wantErr: nil,
 		},
 		{
-			name: "failure_no_tables",
-			in: &Config{
+			name: "success_multiple_tables_config",
+			in: Config{
 				Configuration: common.Configuration{
 					DSN: testValueDSN,
 				},
-				OrderingColumns: []string{"id"},
-				BatchSize:       1000,
+				Tables: map[string]TableConfig{
+					"users": {
+						KeyColumns:     []string{"id", "email"},
+						OrderingColumn: "updated_at",
+					},
+					"orders": {
+						KeyColumns:     []string{"order_id"},
+						OrderingColumn: "created_at",
+					},
+				},
+				BatchSize: 1000,
+				Snapshot:  true,
 			},
-			wantErr: common.NewNoTablesOrColumnsError(),
 		},
 		{
-			name: "failure_no_ordering_columns",
-			in: &Config{
+			name: "failure_no_tables_configured",
+			in: Config{
 				Configuration: common.Configuration{
 					DSN: testValueDSN,
 				},
-				Tables:    []string{"test_table"},
+				Tables:    map[string]TableConfig{},
+				Snapshot:  true,
 				BatchSize: 1000,
 			},
-			wantErr: common.NewNoTablesOrColumnsError(),
+			wantErr: fmt.Errorf(`error validating "tables": required parameter is not provided`),
 		},
 		{
-			name: "failure_mismatched_tables_and_columns",
-			in: &Config{
+			name: "failure_both_table_and_tables_provided",
+			in: Config{
 				Configuration: common.Configuration{
 					DSN: testValueDSN,
 				},
-				Tables:          []string{"test_table1", "test_table2"},
-				OrderingColumns: []string{"id"},
-				BatchSize:       1000,
+				Table: "legacy_table",
+				Tables: map[string]TableConfig{
+					"new_table": {
+						KeyColumns:     []string{"id"},
+						OrderingColumn: "updated_at",
+					},
+				},
+				OrderingColumn: "id",
+				BatchSize:      1000,
 			},
-			wantErr: common.NewMismatchedTablesAndColumnsError(2, 1),
+			wantErr: fmt.Errorf(`error validating "tables": cannot provide both "table" and "tables", use "tables" only`),
 		},
 		{
-			name: "failure_table_has_uppercase_letter",
-			in: &Config{
+			name: "failure_table_name_has_space",
+			in: Config{
 				Configuration: common.Configuration{
 					DSN: testValueDSN,
 				},
-				Tables:          []string{"Test_table"},
-				OrderingColumns: []string{"id"},
-				BatchSize:       1000,
+				Tables: map[string]TableConfig{
+					"test table": {
+						KeyColumns:     []string{"id"},
+						OrderingColumn: "updated_at",
+					},
+				},
+				BatchSize: 1000,
 			},
-			wantErr: common.NewLowercaseError("table[0]"),
+			wantErr: common.NewExcludesSpacesError(ConfigTable),
 		},
 		{
-			name: "failure_table_has_space",
-			in: &Config{
+			name: "failure_table_name_too_long",
+			in: Config{
 				Configuration: common.Configuration{
 					DSN: testValueDSN,
 				},
-				Tables:          []string{"test table"},
-				OrderingColumns: []string{"id"},
-				BatchSize:       1000,
+				Tables: map[string]TableConfig{
+					testLongString: {
+						KeyColumns:     []string{"id"},
+						OrderingColumn: "updated_at",
+					},
+				},
+				BatchSize: 1000,
 			},
-			wantErr: common.NewExcludesSpacesError("table[0]"),
+			wantErr: common.NewLessThanError(ConfigTable, common.MaxConfigStringLength),
 		},
 		{
-			name: "failure_table_exceeds_max_length",
-			in: &Config{
+			name: "failure_ordering_column_missing",
+			in: Config{
 				Configuration: common.Configuration{
 					DSN: testValueDSN,
 				},
-				Tables:          []string{testLongString},
-				OrderingColumns: []string{"id"},
-				BatchSize:       1000,
+				Tables: map[string]TableConfig{
+					"test_table": {
+						KeyColumns: []string{"id"},
+					},
+				},
+				BatchSize: 1000,
 			},
-			wantErr: common.NewLessThanError("table[0]", common.MaxConfigStringLength),
+			wantErr: fmt.Errorf(`error validating %s: required parameter is not provided`, ConfigOrderingColumn),
 		},
 		{
-			name: "failure_ordering_column_has_uppercase_letter",
-			in: &Config{
+			name: "failure_ordering_column_has_uppercase",
+			in: Config{
 				Configuration: common.Configuration{
 					DSN: testValueDSN,
 				},
-				Tables:          []string{"test_table"},
-				OrderingColumns: []string{"ID"},
-				BatchSize:       1000,
+				Tables: map[string]TableConfig{
+					"test_table": {
+						KeyColumns:     []string{"id"},
+						OrderingColumn: "Updated_At",
+					},
+				},
+				BatchSize: 1000,
 			},
-			wantErr: common.NewLowercaseError("orderingColumn[0]"),
+			wantErr: common.NewLowercaseError(ConfigOrderingColumn),
 		},
 		{
-			name: "failure_ordering_column_has_space",
-			in: &Config{
+			name: "failure_key_column_has_space",
+			in: Config{
 				Configuration: common.Configuration{
 					DSN: testValueDSN,
 				},
-				Tables:          []string{"test_table"},
-				OrderingColumns: []string{" id"},
-				BatchSize:       1000,
+				Tables: map[string]TableConfig{
+					"test_table": {
+						KeyColumns:     []string{"user id"},
+						OrderingColumn: "updated_at",
+					},
+				},
+				BatchSize: 1000,
 			},
-			wantErr: common.NewExcludesSpacesError("orderingColumn[0]"),
+			wantErr: common.NewExcludesSpacesError(ConfigKeyColumns),
 		},
 		{
-			name: "failure_ordering_column_exceeds_max_length",
-			in: &Config{
+			name: "failure_key_column_has_uppercase",
+			in: Config{
 				Configuration: common.Configuration{
 					DSN: testValueDSN,
 				},
-				Tables:          []string{"test_table"},
-				OrderingColumns: []string{testLongString},
-				BatchSize:       1000,
+				Tables: map[string]TableConfig{
+					"test_table": {
+						KeyColumns:     []string{"ID"},
+						OrderingColumn: "updated_at",
+					},
+				},
+				BatchSize: 1000,
 			},
-			wantErr: common.NewLessThanError("orderingColumn[0]", common.MaxConfigStringLength),
+			wantErr: common.NewLowercaseError(ConfigKeyColumns),
+		},
+		{
+			name: "failure_batch_size_too_small",
+			in: Config{
+				Configuration: common.Configuration{
+					DSN: testValueDSN,
+				},
+				Tables: map[string]TableConfig{
+					"test_table": {
+						KeyColumns:     []string{"id"},
+						OrderingColumn: "updated_at",
+					},
+				},
+				BatchSize: 0,
+			},
+			wantErr: common.NewGreaterThanError(ConfigBatchSize, common.MinConfigBatchSize),
+		},
+		{
+			name: "failure_batch_size_too_large",
+			in: Config{
+				Configuration: common.Configuration{
+					DSN: testValueDSN,
+				},
+				Tables: map[string]TableConfig{
+					"test_table": {
+						KeyColumns:     []string{"id"},
+						OrderingColumn: "updated_at",
+					},
+				},
+				BatchSize: 100001,
+			},
+			wantErr: common.NewLessThanError(ConfigBatchSize, common.MaxConfigBatchSize),
 		},
 	}
 
@@ -172,22 +248,92 @@ func TestValidateConfig(t *testing.T) {
 	}
 }
 
-func TestGetTableOrderingMap(t *testing.T) {
+func TestConfigInit(t *testing.T) {
 	t.Parallel()
-
 	is := is.New(t)
 
-	config := &Config{
-		Tables:          []string{"table1", "table2"},
-		OrderingColumns: []string{"id1", "id2"},
+	tests := []struct {
+		name     string
+		input    Config
+		expected Config
+	}{
+		{
+			name: "convert_legacy_config",
+			input: Config{
+				Configuration: common.Configuration{
+					DSN: testValueDSN,
+				},
+				Table:          "Legacy_Table",
+				KeyColumns:     []string{"id", "email"},
+				OrderingColumn: "updated_at",
+				BatchSize:      1000,
+			},
+			expected: Config{
+				Configuration: common.Configuration{
+					DSN: testValueDSN,
+				},
+				Tables: map[string]TableConfig{
+					"legacy_table": {
+						KeyColumns:     []string{"id", "email"},
+						OrderingColumn: "updated_at",
+					},
+				},
+				BatchSize: 1000,
+				Table:     "",
+			},
+		},
+		{
+			name: "convert_table_names_to_lowercase",
+			input: Config{
+				Configuration: common.Configuration{
+					DSN: testValueDSN,
+				},
+				Tables: map[string]TableConfig{
+					"Users": {
+						KeyColumns:     []string{"id"},
+						OrderingColumn: "updated_at",
+					},
+					"Orders": {
+						KeyColumns:     []string{"order_id"},
+						OrderingColumn: "created_at",
+					},
+				},
+				BatchSize: 1000,
+			},
+			expected: Config{
+				Configuration: common.Configuration{
+					DSN: testValueDSN,
+				},
+				Tables: map[string]TableConfig{
+					"users": {
+						KeyColumns:     []string{"id"},
+						OrderingColumn: "updated_at",
+					},
+					"orders": {
+						KeyColumns:     []string{"order_id"},
+						OrderingColumn: "created_at",
+					},
+				},
+				BatchSize: 1000,
+			},
+		},
 	}
 
-	expectedMap := map[string]string{
-		"table1": "id1",
-		"table2": "id2",
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := tt.input.Init()
+
+			is.Equal(len(result.Tables), len(tt.expected.Tables))
+			for tableName, tableConfig := range result.Tables {
+				expectedConfig, exists := tt.expected.Tables[tableName]
+				is.True(exists)
+				is.Equal(tableConfig, expectedConfig)
+			}
+
+			is.Equal(result.Table, tt.expected.Table)
+			is.Equal(result.BatchSize, tt.expected.BatchSize)
+			is.Equal(result.DSN, tt.expected.DSN)
+		})
 	}
-
-	result := config.GetTableOrderingMap()
-
-	is.Equal(result, expectedMap)
 }

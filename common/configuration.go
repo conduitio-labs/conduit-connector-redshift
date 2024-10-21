@@ -18,6 +18,8 @@ const (
 	MaxConfigStringLength = 127
 	ConfigTable           = "table"
 	ConfigKeyColumns      = "keyColumns"
+	MinConfigBatchSize    = 1
+	MaxConfigBatchSize    = 100000
 )
 
 // Configuration contains common for source and destination configurable values.

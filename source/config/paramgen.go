@@ -8,11 +8,14 @@ import (
 )
 
 const (
-	ConfigBatchSize       = "batchSize"
-	ConfigDsn             = "dsn"
-	ConfigOrderingColumns = "orderingColumns"
-	ConfigSnapshot        = "snapshot"
-	ConfigTables          = "tables"
+	ConfigBatchSize            = "batchSize"
+	ConfigDsn                  = "dsn"
+	ConfigKeyColumns           = "keyColumns"
+	ConfigOrderingColumn       = "orderingColumn"
+	ConfigSnapshot             = "snapshot"
+	ConfigTable                = "table"
+	ConfigTablesKeyColumns     = "tables.*.keyColumns"
+	ConfigTablesOrderingColumn = "tables.*.orderingColumn"
 )
 
 func (Config) Parameters() map[string]config.Parameter {
@@ -21,10 +24,7 @@ func (Config) Parameters() map[string]config.Parameter {
 			Default:     "1000",
 			Description: "BatchSize is a size of rows batch.",
 			Type:        config.ParameterTypeInt,
-			Validations: []config.Validation{
-				config.ValidationGreaterThan{V: 0},
-				config.ValidationLessThan{V: 100001},
-			},
+			Validations: []config.Validation{},
 		},
 		ConfigDsn: {
 			Default:     "",
@@ -34,13 +34,17 @@ func (Config) Parameters() map[string]config.Parameter {
 				config.ValidationRequired{},
 			},
 		},
-		ConfigOrderingColumns: {
+		ConfigKeyColumns: {
 			Default:     "",
-			Description: "OrderingColumns is a list of corresponding ordering columns for the table\nthat the connector will use for ordering rows.",
+			Description: "Deprecated: use `tables.*.keyColumns` instead",
 			Type:        config.ParameterTypeString,
-			Validations: []config.Validation{
-				config.ValidationRequired{},
-			},
+			Validations: []config.Validation{},
+		},
+		ConfigOrderingColumn: {
+			Default:     "",
+			Description: "Deprecated: use `tables.*.orderingColumn` instead",
+			Type:        config.ParameterTypeString,
+			Validations: []config.Validation{},
 		},
 		ConfigSnapshot: {
 			Default:     "true",
@@ -48,13 +52,23 @@ func (Config) Parameters() map[string]config.Parameter {
 			Type:        config.ParameterTypeBool,
 			Validations: []config.Validation{},
 		},
-		ConfigTables: {
+		ConfigTable: {
 			Default:     "",
-			Description: "Tables is a list of table names to pull data from.",
+			Description: "Deprecated: use `tables` instead",
 			Type:        config.ParameterTypeString,
-			Validations: []config.Validation{
-				config.ValidationRequired{},
-			},
+			Validations: []config.Validation{},
+		},
+		ConfigTablesKeyColumns: {
+			Default:     "",
+			Description: "KeyColumns is the configuration list of column names to build the opencdc.Record.Key.",
+			Type:        config.ParameterTypeString,
+			Validations: []config.Validation{},
+		},
+		ConfigTablesOrderingColumn: {
+			Default:     "",
+			Description: "OrderingColumn is a name of a column that the connector will use for ordering rows.",
+			Type:        config.ParameterTypeString,
+			Validations: []config.Validation{},
 		},
 	}
 }

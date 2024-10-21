@@ -28,10 +28,8 @@ type Iterator struct {
 	db       *sqlx.DB
 	position *Position
 
-	// list of tables to fetch data from
-	tables []string
-	// orderingColumn is map of tables to its ordering column
-	orderingColumn map[string]string
+	// tables to pull data from and their config
+	tables map[string]config.TableConfig
 	// batchSize is the size of a batch retrieved from Redshift
 	batchSize int
 
@@ -46,11 +44,10 @@ type Iterator struct {
 // New creates a new instance of the iterator.
 func New(ctx context.Context, driverName string, pos *Position, config config.Config) (*Iterator, error) {
 	iterator := &Iterator{
-		tables:         config.Tables,
-		orderingColumn: config.GetTableOrderingMap(),
-		batchSize:      config.BatchSize,
-		currentTable:   0,
-		position:       pos,
+		tables:       config.Tables,
+		batchSize:    config.BatchSize,
+		currentTable: 0,
+		position:     pos,
 	}
 
 	if len(pos.TablePositions) == 0 {
@@ -62,26 +59,21 @@ func New(ctx context.Context, driverName string, pos *Position, config config.Co
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	for _, table := range iterator.tables {
-		position, ok := iterator.position.TablePositions[table]
-		if !ok {
-			position = TablePosition{
-				LastProcessedValue:  nil,
-				LatestSnapshotValue: nil,
-			}
-		}
+	for tableName, tableConfig := range iterator.tables {
+		position := iterator.position.TablePositions[tableName]
 
 		worker, err := NewWorker(ctx, WorkerConfig{
 			db:             iterator.db,
 			position:       position,
-			table:          table,
-			orderingColumn: iterator.orderingColumn[table],
+			table:          tableName,
+			orderingColumn: tableConfig.OrderingColumn,
+			keyColumns:     tableConfig.KeyColumns,
 			batchSize:      iterator.batchSize,
 			snapshot:       config.Snapshot,
 			dsn:            config.DSN,
 		}, iterator)
 		if err != nil {
-			return nil, fmt.Errorf("create worker for table %s: %w", table, err)
+			return nil, fmt.Errorf("create worker for table %s: %w", tableName, err)
 		}
 		iterator.workers = append(iterator.workers, worker)
 	}

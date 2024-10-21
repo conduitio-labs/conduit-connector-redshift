@@ -40,19 +40,24 @@ func TestSource_Configure_requiredFieldsSuccess(t *testing.T) {
 	s := Source{}
 
 	err := s.Configure(context.Background(), map[string]string{
-		config.ConfigDsn:             testDSN,
-		config.ConfigTables:          testTable,
-		config.ConfigOrderingColumns: "created_at",
+		config.ConfigDsn:            testDSN,
+		config.ConfigTable:          testTable,
+		config.ConfigOrderingColumn: "created_at",
 	})
 	is.NoErr(err)
 	is.Equal(s.config, config.Config{
 		Configuration: common.Configuration{
 			DSN: testDSN,
 		},
-		Tables:          []string{testTable},
-		OrderingColumns: []string{"created_at"},
-		Snapshot:        true,
-		BatchSize:       1000,
+		Tables: func() map[string]config.TableConfig {
+			tables := make(map[string]config.TableConfig)
+			tables[testTable] = config.TableConfig{OrderingColumn: "created_at"}
+
+			return tables
+		}(),
+		OrderingColumn: "created_at",
+		Snapshot:       true,
+		BatchSize:      1000,
 	})
 }
 
@@ -64,21 +69,28 @@ func TestSource_Configure_allFieldsSuccess(t *testing.T) {
 	s := Source{}
 
 	err := s.Configure(context.Background(), map[string]string{
-		config.ConfigDsn:             testDSN,
-		config.ConfigTables:          testTable,
-		config.ConfigOrderingColumns: "created_at",
-		config.ConfigSnapshot:        "false",
-		config.ConfigBatchSize:       "10000",
+		config.ConfigDsn:            testDSN,
+		config.ConfigTable:          testTable,
+		config.ConfigOrderingColumn: "created_at",
+		config.ConfigSnapshot:       "false",
+		config.ConfigKeyColumns:     "id,name",
+		config.ConfigBatchSize:      "10000",
 	})
 	is.NoErr(err)
 	is.Equal(s.config, config.Config{
 		Configuration: common.Configuration{
 			DSN: testDSN,
 		},
-		Tables:          []string{testTable},
-		OrderingColumns: []string{"created_at"},
-		Snapshot:        false,
-		BatchSize:       10000,
+		Tables: func() map[string]config.TableConfig {
+			tables := make(map[string]config.TableConfig)
+			tables[testTable] = config.TableConfig{OrderingColumn: "created_at", KeyColumns: []string{"id", "name"}}
+
+			return tables
+		}(),
+		KeyColumns:     []string{"id", "name"},
+		OrderingColumn: "created_at",
+		Snapshot:       false,
+		BatchSize:      10000,
 	})
 }
 
@@ -90,11 +102,11 @@ func TestSource_Configure_failure(t *testing.T) {
 	s := Source{}
 
 	err := s.Configure(context.Background(), map[string]string{
-		config.ConfigDsn:    testDSN,
-		config.ConfigTables: testTable,
+		config.ConfigDsn:   testDSN,
+		config.ConfigTable: testTable,
 	})
 	is.True(err != nil)
-	is.Equal(err.Error(), `config invalid: error validating "orderingColumns": required parameter is not provided`)
+	is.Equal(err.Error(), "error validating configuration: error validating \"tables\": required parameter is not provided")
 }
 
 func TestSource_Read_success(t *testing.T) {
@@ -125,7 +137,6 @@ func TestSource_Read_success(t *testing.T) {
 
 	r, err := s.Read(ctx)
 	is.NoErr(err)
-
 	is.Equal(r, record)
 }
 
