@@ -54,16 +54,3 @@ func (e LessThanError) Error() string {
 func NewLessThanError(fieldName string, value int) LessThanError {
 	return LessThanError{fieldName: fieldName, value: value}
 }
-
-type GreaterThanError struct {
-	fieldName string
-	value     int
-}
-
-func (e GreaterThanError) Error() string {
-	return fmt.Sprintf("%q value must be greater than or equal to %d", e.fieldName, e.value)
-}
-
-func NewGreaterThanError(fieldName string, value int) GreaterThanError {
-	return GreaterThanError{fieldName: fieldName, value: value}
-}

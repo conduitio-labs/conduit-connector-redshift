@@ -240,7 +240,7 @@ func (w *Writer) Stop() error {
 	return nil
 }
 
-func (w *Writer) preparePayloadAndKey(record opencdc.Record) (map[string]interface{}, map[string]interface{}, error) {
+func (w *Writer) preparePayloadAndKey(record opencdc.Record) (opencdc.StructuredData, opencdc.StructuredData, error) {
 	payload, err := w.structurizeData(record.Payload.After)
 	if err != nil {
 		return nil, nil, fmt.Errorf("structurize payload: %w", err)

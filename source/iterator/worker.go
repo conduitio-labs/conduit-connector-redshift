@@ -220,14 +220,11 @@ func (w *Worker) Next(_ context.Context) (opencdc.Record, error) {
 
 // Stop stops worker.
 func (w *Worker) Stop() error {
-	var err error
-
 	if w.rows != nil {
-		err = w.rows.Close()
-	}
-
-	if err != nil {
-		return fmt.Errorf("close db rows: %w", err)
+		err := w.rows.Close()
+		if err != nil {
+			return fmt.Errorf("close db rows: %w", err)
+		}
 	}
 
 	return nil

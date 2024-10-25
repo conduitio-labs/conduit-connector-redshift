@@ -40,7 +40,7 @@ type Config struct {
 	// will take a snapshot of the entire table before starting cdc mode.
 	Snapshot bool `json:"snapshot" default:"true"`
 	// BatchSize is a size of rows batch.
-	BatchSize int `json:"batchSize" default:"1000"`
+	BatchSize int `json:"batchSize" default:"1000" validate:"gt=0,lt=100001"`
 }
 
 type TableConfig struct {
@@ -105,14 +105,6 @@ func (c Config) Validate() error {
 		if err := tableConfig.validate(); err != nil {
 			return err
 		}
-	}
-
-	// c.BatchSize handling "gte=1" and "lte=100000" validations.
-	if c.BatchSize < common.MinConfigBatchSize {
-		return common.NewGreaterThanError(ConfigBatchSize, common.MinConfigBatchSize)
-	}
-	if c.BatchSize > common.MaxConfigBatchSize {
-		return common.NewLessThanError(ConfigBatchSize, common.MaxConfigBatchSize)
 	}
 
 	return nil

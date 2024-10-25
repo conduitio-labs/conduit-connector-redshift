@@ -34,7 +34,7 @@ type Config struct {
 	common.Configuration
 	// Table is the configuration of the table name.
 	Table string `json:"table" default:"{{ index .Metadata \"opencdc.collection\" }}"`
-	// KeyColumns is the configuration of comma-separated column names to build the sdk.Record.Key.
+	// KeyColumns is the configuration of comma-separated column names to build the record key.
 	KeyColumns []string `json:"keyColumns"`
 }
 

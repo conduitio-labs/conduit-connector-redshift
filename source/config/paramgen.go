@@ -24,7 +24,10 @@ func (Config) Parameters() map[string]config.Parameter {
 			Default:     "1000",
 			Description: "BatchSize is a size of rows batch.",
 			Type:        config.ParameterTypeInt,
-			Validations: []config.Validation{},
+			Validations: []config.Validation{
+				config.ValidationGreaterThan{V: 0},
+				config.ValidationLessThan{V: 100001},
+			},
 		},
 		ConfigDsn: {
 			Default:     "",

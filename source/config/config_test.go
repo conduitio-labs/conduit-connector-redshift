@@ -198,38 +198,6 @@ func TestValidateConfig(t *testing.T) {
 			},
 			wantErr: common.NewLowercaseError(ConfigKeyColumns),
 		},
-		{
-			name: "failure_batch_size_too_small",
-			in: Config{
-				Configuration: common.Configuration{
-					DSN: testValueDSN,
-				},
-				Tables: map[string]TableConfig{
-					"test_table": {
-						KeyColumns:     []string{"id"},
-						OrderingColumn: "updated_at",
-					},
-				},
-				BatchSize: 0,
-			},
-			wantErr: common.NewGreaterThanError(ConfigBatchSize, common.MinConfigBatchSize),
-		},
-		{
-			name: "failure_batch_size_too_large",
-			in: Config{
-				Configuration: common.Configuration{
-					DSN: testValueDSN,
-				},
-				Tables: map[string]TableConfig{
-					"test_table": {
-						KeyColumns:     []string{"id"},
-						OrderingColumn: "updated_at",
-					},
-				},
-				BatchSize: 100001,
-			},
-			wantErr: common.NewLessThanError(ConfigBatchSize, common.MaxConfigBatchSize),
-		},
 	}
 
 	for _, tt := range tests {
