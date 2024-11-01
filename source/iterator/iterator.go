@@ -35,8 +35,8 @@ type Iterator struct {
 
 	// index of the current table being iterated over
 	currentTable int
-	// store individual workers for each table
-	workers []*Worker
+	// store table iterators for each table
+	tableIterators []*TableIterator
 
 	mu sync.Mutex
 }
@@ -62,7 +62,7 @@ func New(ctx context.Context, driverName string, pos *Position, config config.Co
 	for tableName, tableConfig := range iterator.tables {
 		position := iterator.position.TablePositions[tableName]
 
-		worker, err := NewWorker(ctx, WorkerConfig{
+		ti, err := NewTableIterator(ctx, TableIteratorConfig{
 			db:             iterator.db,
 			position:       position,
 			table:          tableName,
@@ -73,9 +73,9 @@ func New(ctx context.Context, driverName string, pos *Position, config config.Co
 			dsn:            config.DSN,
 		}, iterator)
 		if err != nil {
-			return nil, fmt.Errorf("create worker for table %s: %w", tableName, err)
+			return nil, fmt.Errorf("create iterator for table %s: %w", tableName, err)
 		}
-		iterator.workers = append(iterator.workers, worker)
+		iterator.tableIterators = append(iterator.tableIterators, ti)
 	}
 
 	return iterator, nil
@@ -88,11 +88,11 @@ func (iter *Iterator) HasNext(ctx context.Context) (bool, error) {
 	}
 
 	for iter.currentTable < len(iter.tables) {
-		worker := iter.workers[iter.currentTable]
+		ti := iter.tableIterators[iter.currentTable]
 
-		hasNext, err := worker.HasNext(ctx)
+		hasNext, err := ti.HasNext(ctx)
 		if err != nil {
-			return false, fmt.Errorf("error checking next for table %s: %w", worker.table, err)
+			return false, fmt.Errorf("error checking next for table %s: %w", ti.table, err)
 		}
 
 		if hasNext {
@@ -108,11 +108,11 @@ func (iter *Iterator) HasNext(ctx context.Context) (bool, error) {
 // Next returns the next record.
 func (iter *Iterator) Next(ctx context.Context) (opencdc.Record, error) {
 	if iter.currentTable < len(iter.tables) {
-		worker := iter.workers[iter.currentTable]
+		ti := iter.tableIterators[iter.currentTable]
 
-		record, err := worker.Next(ctx)
+		record, err := ti.Next(ctx)
 		if err != nil {
-			return opencdc.Record{}, fmt.Errorf("error getting next record from table %s: %w", worker.table, err)
+			return opencdc.Record{}, fmt.Errorf("error getting next record from table %s: %w", ti.table, err)
 		}
 
 		return record, nil
@@ -123,10 +123,10 @@ func (iter *Iterator) Next(ctx context.Context) (opencdc.Record, error) {
 
 // Stop stops iterator and closes database connection.
 func (iter *Iterator) Stop() error {
-	for _, worker := range iter.workers {
-		err := worker.Stop()
+	for _, ti := range iter.tableIterators {
+		err := ti.Stop()
 		if err != nil {
-			return fmt.Errorf("stop worker: %w", err)
+			return fmt.Errorf("stop table iterator: %w", err)
 		}
 	}
 

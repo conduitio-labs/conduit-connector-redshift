@@ -35,16 +35,16 @@ const (
 	pingTimeout = 10 * time.Second
 )
 
-type Worker struct {
+type TableIterator struct {
 	db       *sqlx.DB
 	rows     *sqlx.Rows
 	position TablePosition
 
 	// table is a table name
 	table string
-	// keyColumns are table column which the worker will use to create a record's key
+	// keyColumns are table column which the table iterator will use to create a record's key
 	keyColumns []string
-	// orderingColumn is the name of the column that worker will use for sorting data
+	// orderingColumn is the name of the column that table iterator will use for sorting data
 	orderingColumn string
 	// batchSize is the size of a batch retrieved from Redshift
 	batchSize int
@@ -55,7 +55,7 @@ type Worker struct {
 	iterator *Iterator
 }
 
-type WorkerConfig struct {
+type TableIteratorConfig struct {
 	db       *sqlx.DB
 	position TablePosition
 
@@ -69,9 +69,9 @@ type WorkerConfig struct {
 	dsn      string
 }
 
-// NewWorker creates a new instance of the worker.
-func NewWorker(ctx context.Context, config WorkerConfig, iterator *Iterator) (*Worker, error) {
-	worker := &Worker{
+// NewTableIterator creates a new instance of the table iterator.
+func NewTableIterator(ctx context.Context, config TableIteratorConfig, iterator *Iterator) (*TableIterator, error) {
+	ti := &TableIterator{
 		db:             config.db,
 		position:       config.position,
 		table:          config.table,
@@ -81,18 +81,18 @@ func NewWorker(ctx context.Context, config WorkerConfig, iterator *Iterator) (*W
 		iterator:       iterator,
 	}
 
-	if worker.position.LastProcessedValue == nil {
-		latestSnapshotValue, latestValErr := worker.latestSnapshotValue(ctx)
+	if ti.position.LastProcessedValue == nil {
+		latestSnapshotValue, latestValErr := ti.latestSnapshotValue(ctx)
 		if latestValErr != nil {
 			return nil, fmt.Errorf("get latest snapshot value: %w", latestValErr)
 		}
 
 		if config.snapshot {
-			// set the LatestSnapshotValue to specify which record the snapshot worker will work to
-			worker.position.LatestSnapshotValue = latestSnapshotValue
+			// set the LatestSnapshotValue to specify which record the snapshot table iterator will work to
+			ti.position.LatestSnapshotValue = latestSnapshotValue
 		} else {
 			// set the LastProcessedValue to skip a snapshot of the entire table
-			worker.position.LastProcessedValue = latestSnapshotValue
+			ti.position.LastProcessedValue = latestSnapshotValue
 		}
 	}
 
@@ -101,87 +101,87 @@ func NewWorker(ctx context.Context, config WorkerConfig, iterator *Iterator) (*W
 		return nil, fmt.Errorf("parse dsn: %w", err)
 	}
 
-	err = worker.populateKeyColumns(ctx, uri.Query().Get(keySearchPath))
+	err = ti.populateKeyColumns(ctx, uri.Query().Get(keySearchPath))
 	if err != nil {
 		return nil, fmt.Errorf("populate key columns: %w", err)
 	}
 
-	worker.columnTypes, err = columntypes.GetColumnTypes(
+	ti.columnTypes, err = columntypes.GetColumnTypes(
 		ctx,
-		worker.db,
-		worker.table,
+		ti.db,
+		ti.table,
 		uri.Query().Get(keySearchPath),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get column types: %w", err)
 	}
 
-	err = worker.loadRows(ctx)
+	err = ti.loadRows(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("load rows: %w", err)
 	}
 
-	return worker, nil
+	return ti, nil
 }
 
 // HasNext returns a bool indicating whether the source has the next record to return or not.
-func (w *Worker) HasNext(ctx context.Context) (bool, error) {
-	if w.rows != nil && w.rows.Next() {
+func (ti *TableIterator) HasNext(ctx context.Context) (bool, error) {
+	if ti.rows != nil && ti.rows.Next() {
 		return true, nil
 	}
 
-	if err := w.loadRows(ctx); err != nil {
+	if err := ti.loadRows(ctx); err != nil {
 		return false, fmt.Errorf("load rows: %w", err)
 	}
 
-	if w.rows.Next() {
+	if ti.rows.Next() {
 		return true, nil
 	}
 
 	// At this point, there are no more rows to load
 	// so if we are in snapshot mode, we can switch to CDC
-	if w.position.LatestSnapshotValue != nil {
+	if ti.position.LatestSnapshotValue != nil {
 		// switch to CDC mode
-		w.position.LastProcessedValue = w.position.LatestSnapshotValue
-		w.position.LatestSnapshotValue = nil
+		ti.position.LastProcessedValue = ti.position.LatestSnapshotValue
+		ti.position.LatestSnapshotValue = nil
 
-		w.iterator.updateTablePosition(w.table, w.position)
+		ti.iterator.updateTablePosition(ti.table, ti.position)
 
 		// and load new rows
-		if err := w.loadRows(ctx); err != nil {
+		if err := ti.loadRows(ctx); err != nil {
 			return false, fmt.Errorf("load rows: %w", err)
 		}
 
-		return w.rows.Next(), nil
+		return ti.rows.Next(), nil
 	}
 
 	return false, nil
 }
 
 // Next returns the next record.
-func (w *Worker) Next(_ context.Context) (opencdc.Record, error) {
+func (ti *TableIterator) Next(_ context.Context) (opencdc.Record, error) {
 	row := make(map[string]any)
-	if err := w.rows.MapScan(row); err != nil {
+	if err := ti.rows.MapScan(row); err != nil {
 		return opencdc.Record{}, fmt.Errorf("scan rows: %w", err)
 	}
 
-	transformedRow, err := columntypes.TransformRow(row, w.columnTypes)
+	transformedRow, err := columntypes.TransformRow(row, ti.columnTypes)
 	if err != nil {
 		return opencdc.Record{}, fmt.Errorf("transform row column types: %w", err)
 	}
 
-	if _, ok := transformedRow[w.orderingColumn]; !ok {
-		return opencdc.Record{}, fmt.Errorf("ordering column %q not found", w.orderingColumn)
+	if _, ok := transformedRow[ti.orderingColumn]; !ok {
+		return opencdc.Record{}, fmt.Errorf("ordering column %q not found", ti.orderingColumn)
 	}
 
 	key := make(opencdc.StructuredData)
-	for i := range w.keyColumns {
-		val, ok := transformedRow[w.keyColumns[i]]
+	for i := range ti.keyColumns {
+		val, ok := transformedRow[ti.keyColumns[i]]
 		if !ok {
-			return opencdc.Record{}, fmt.Errorf("key column %q not found", w.keyColumns[i])
+			return opencdc.Record{}, fmt.Errorf("key column %q not found", ti.keyColumns[i])
 		}
 
-		key[w.keyColumns[i]] = val
+		key[ti.keyColumns[i]] = val
 	}
 
 	rowBytes, err := json.Marshal(transformedRow)
@@ -191,37 +191,37 @@ func (w *Worker) Next(_ context.Context) (opencdc.Record, error) {
 
 	// set a new position into the variable,
 	// to avoid saving position into the struct until we marshal the position
-	position := w.iterator.getPosition()
+	position := ti.iterator.getPosition()
 
-	tablePos := w.getTablePosition(position, transformedRow)
+	tablePos := ti.getTablePosition(position, transformedRow)
 
 	// set the value from iter.orderingColumn column you chose
-	position.TablePositions[w.table] = tablePos
+	position.TablePositions[ti.table] = tablePos
 
 	sdkPosition, err := position.marshal()
 	if err != nil {
 		return opencdc.Record{}, fmt.Errorf("failed converting to SDK position :%w", err)
 	}
 
-	w.position = position.TablePositions[w.table]
-	w.iterator.updateTablePosition(w.table, tablePos)
+	ti.position = position.TablePositions[ti.table]
+	ti.iterator.updateTablePosition(ti.table, tablePos)
 
 	metadata := opencdc.Metadata{
-		opencdc.MetadataCollection: w.table,
+		opencdc.MetadataCollection: ti.table,
 	}
 	metadata.SetCreatedAt(time.Now().UTC())
 
-	if w.position.LatestSnapshotValue != nil {
+	if ti.position.LatestSnapshotValue != nil {
 		return sdk.Util.Source.NewRecordSnapshot(sdkPosition, metadata, key, opencdc.RawData(rowBytes)), nil
 	}
 
 	return sdk.Util.Source.NewRecordCreate(sdkPosition, metadata, key, opencdc.RawData(rowBytes)), nil
 }
 
-// Stop stops worker.
-func (w *Worker) Stop() error {
-	if w.rows != nil {
-		err := w.rows.Close()
+// Stop stops table iterator.
+func (ti *TableIterator) Stop() error {
+	if ti.rows != nil {
+		err := ti.rows.Close()
 		if err != nil {
 			return fmt.Errorf("close db rows: %w", err)
 		}
@@ -232,26 +232,26 @@ func (w *Worker) Stop() error {
 
 // loadRows selects a batch of rows from a database, based on the
 // table, columns, orderingColumn, batchSize and current position.
-func (w *Worker) loadRows(ctx context.Context) error {
+func (ti *TableIterator) loadRows(ctx context.Context) error {
 	var err error
 
 	sb := sqlbuilder.PostgreSQL.NewSelectBuilder().
 		Select("*").
-		From(w.table).
-		OrderBy(w.orderingColumn).
-		Limit(w.batchSize)
+		From(ti.table).
+		OrderBy(ti.orderingColumn).
+		Limit(ti.batchSize)
 
-	if w.position.LastProcessedValue != nil {
-		sb.Where(sb.GreaterThan(w.orderingColumn, w.position.LastProcessedValue))
+	if ti.position.LastProcessedValue != nil {
+		sb.Where(sb.GreaterThan(ti.orderingColumn, ti.position.LastProcessedValue))
 	}
 
-	if w.position.LatestSnapshotValue != nil {
-		sb.Where(sb.LessEqualThan(w.orderingColumn, w.position.LatestSnapshotValue))
+	if ti.position.LatestSnapshotValue != nil {
+		sb.Where(sb.LessEqualThan(ti.orderingColumn, ti.position.LatestSnapshotValue))
 	}
 
 	query, args := sb.Build()
 
-	w.rows, err = w.db.QueryxContext(ctx, query, args...)
+	ti.rows, err = ti.db.QueryxContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("execute select data query %q, %v: %w", query, args, err)
 	}
@@ -261,8 +261,8 @@ func (w *Worker) loadRows(ctx context.Context) error {
 
 // populateKeyColumns populates keyColumn from the database metadata
 // or from the orderingColumn configuration field in the described order if it's empty.
-func (w *Worker) populateKeyColumns(ctx context.Context, schema string) error {
-	if len(w.keyColumns) != 0 {
+func (ti *TableIterator) populateKeyColumns(ctx context.Context, schema string) error {
+	if len(ti.keyColumns) != 0 {
 		return nil
 	}
 
@@ -276,7 +276,7 @@ func (w *Worker) populateKeyColumns(ctx context.Context, schema string) error {
 		).
 		Where("tco.constraint_type = 'PRIMARY KEY'")
 
-	sb.Where(sb.Equal("kcu.table_name", w.table))
+	sb.Where(sb.Equal("kcu.table_name", ti.table))
 
 	if schema != "" {
 		sb.Where(sb.Equal("kcu.table_schema", schema))
@@ -284,7 +284,7 @@ func (w *Worker) populateKeyColumns(ctx context.Context, schema string) error {
 
 	query, args := sb.Build()
 
-	rows, err := w.db.QueryxContext(ctx, query, args...)
+	rows, err := ti.db.QueryxContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("execute query select primary keys %q, %v: %w", query, args, err)
 	}
@@ -296,28 +296,28 @@ func (w *Worker) populateKeyColumns(ctx context.Context, schema string) error {
 			return fmt.Errorf("scan primary key column name: %w", err)
 		}
 
-		w.keyColumns = append(w.keyColumns, columnName)
+		ti.keyColumns = append(ti.keyColumns, columnName)
 	}
 
-	if len(w.keyColumns) == 0 {
-		w.keyColumns = []string{w.orderingColumn}
+	if len(ti.keyColumns) == 0 {
+		ti.keyColumns = []string{ti.orderingColumn}
 	}
 
 	return nil
 }
 
 // latestSnapshotValue returns most recent value of orderingColumn column.
-func (w *Worker) latestSnapshotValue(ctx context.Context) (any, error) {
+func (ti *TableIterator) latestSnapshotValue(ctx context.Context) (any, error) {
 	var latestSnapshotValue any
 
 	query := sqlbuilder.PostgreSQL.NewSelectBuilder().
-		Select(w.orderingColumn).
-		From(w.table).
-		OrderBy(w.orderingColumn).Desc().
+		Select(ti.orderingColumn).
+		From(ti.table).
+		OrderBy(ti.orderingColumn).Desc().
 		Limit(1).
 		String()
 
-	rows, err := w.db.QueryxContext(ctx, query)
+	rows, err := ti.db.QueryxContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("execute select latest snapshot value query %q: %w", query, err)
 	}
@@ -332,15 +332,15 @@ func (w *Worker) latestSnapshotValue(ctx context.Context) (any, error) {
 	return latestSnapshotValue, nil
 }
 
-func (w *Worker) getTablePosition(position *Position, transformedRow map[string]any) TablePosition {
-	tablePos, ok := position.TablePositions[w.table]
+func (ti *TableIterator) getTablePosition(position *Position, transformedRow map[string]any) TablePosition {
+	tablePos, ok := position.TablePositions[ti.table]
 	if !ok {
 		tablePos = TablePosition{
-			LastProcessedValue:  transformedRow[w.orderingColumn],
-			LatestSnapshotValue: w.position.LatestSnapshotValue,
+			LastProcessedValue:  transformedRow[ti.orderingColumn],
+			LatestSnapshotValue: ti.position.LatestSnapshotValue,
 		}
 	} else {
-		tablePos.LastProcessedValue = transformedRow[w.orderingColumn]
+		tablePos.LastProcessedValue = transformedRow[ti.orderingColumn]
 	}
 
 	return tablePos

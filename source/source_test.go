@@ -82,10 +82,9 @@ func TestSource_Configure_allFieldsSuccess(t *testing.T) {
 			DSN: testDSN,
 		},
 		Tables: func() map[string]config.TableConfig {
-			tables := make(map[string]config.TableConfig)
-			tables[testTable] = config.TableConfig{OrderingColumn: "created_at", KeyColumns: []string{"id", "name"}}
-
-			return tables
+			return map[string]config.TableConfig{
+				testTable: {OrderingColumn: "created_at", KeyColumns: []string{"id", "name"}},
+			}
 		}(),
 		KeyColumns:     []string{"id", "name"},
 		OrderingColumn: "created_at",
