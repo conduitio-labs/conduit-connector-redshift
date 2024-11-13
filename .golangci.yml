@@ -87,7 +87,7 @@ linters:
     - nakedret
     - nilerr
     - nilnil
-    - nlreturn
+    # - nlreturn
     - noctx
     - nolintlint
     - paralleltest

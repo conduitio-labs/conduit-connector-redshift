@@ -1,4 +1,4 @@
-// Copyright © 2022 Meroxa, Inc. & Yalantis
+// Copyright © 2024 Meroxa, Inc. & Yalantis
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package iterator
+package source
 
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/conduitio/conduit-commons/opencdc"
 )
 
 // Position represents Redshift's position.
 type Position struct {
+	mu             sync.Mutex
 	TablePositions map[string]TablePosition `json:"tablePositions"`
+}
+
+// NewPosition initializes a new position when sdk position is nil.
+func NewPosition() *Position {
+	return &Position{TablePositions: make(map[string]TablePosition)}
 }
 
 type TablePosition struct {
@@ -38,7 +45,7 @@ func ParseSDKPosition(position opencdc.Position) (*Position, error) {
 	var pos Position
 
 	if position == nil {
-		return &pos, nil
+		return NewPosition(), nil
 	}
 
 	if err := json.Unmarshal(position, &pos); err != nil {
@@ -49,11 +56,26 @@ func ParseSDKPosition(position opencdc.Position) (*Position, error) {
 }
 
 // marshal marshals Position and returns opencdc.Position or an error.
-func (p Position) marshal() (opencdc.Position, error) {
+func (p *Position) marshal() (opencdc.Position, error) {
 	positionBytes, err := json.Marshal(p)
 	if err != nil {
 		return nil, fmt.Errorf("marshal position: %w", err)
 	}
 
 	return positionBytes, nil
+}
+
+// update updates a table position in the source position.
+func (p *Position) update(table string, newPosition TablePosition) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.TablePositions[table] = newPosition
+}
+
+// get fetches a table position from the source position.
+func (p *Position) get(table string) (TablePosition, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	pos, exists := p.TablePositions[table]
+	return pos, exists
 }

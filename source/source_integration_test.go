@@ -34,8 +34,6 @@ import (
 const (
 	// envNameDSN is a Redshift dsn environment name.
 	envNameDSN = "REDSHIFT_DSN"
-	// pingTimeout is a database ping timeout.
-	pingTimeout = 10 * time.Second
 )
 
 func TestSource_Read_tableDoesNotExist(t *testing.T) {

@@ -1,4 +1,4 @@
-// Copyright © 2022 Meroxa, Inc. & Yalantis
+// Copyright © 2024 Meroxa, Inc. & Yalantis
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package iterator
+package source
 
 import (
 	"errors"
@@ -22,19 +22,27 @@ import (
 	"github.com/matryer/is"
 )
 
+func TestNewPosition(t *testing.T) {
+	t.Parallel()
+	is := is.New(t)
+	pos := NewPosition()
+	is.True(pos != nil)
+	is.Equal(len(pos.TablePositions), 0)
+}
+
 func TestParseSDKPosition(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name    string
 		in      opencdc.Position
-		wantPos Position
+		wantPos *Position
 		wantErr error
 	}{
 		{
 			name:    "success_position_is_nil",
 			in:      nil,
-			wantPos: Position{},
+			wantPos: &Position{TablePositions: make(map[string]TablePosition)},
 		},
 		{
 			name: "success_single_table",
@@ -46,7 +54,7 @@ func TestParseSDKPosition(t *testing.T) {
 					}
 				}
 			}`),
-			wantPos: Position{
+			wantPos: &Position{
 				TablePositions: map[string]TablePosition{
 					"table1": {
 						LastProcessedValue:  float64(10),
@@ -69,7 +77,7 @@ func TestParseSDKPosition(t *testing.T) {
 					}
 				}
 			}`),
-			wantPos: Position{
+			wantPos: &Position{
 				TablePositions: map[string]TablePosition{
 					"table1": {
 						LastProcessedValue:  "abc",
@@ -85,7 +93,7 @@ func TestParseSDKPosition(t *testing.T) {
 		{
 			name: "success_empty_table_positions",
 			in:   opencdc.Position(`{"tablePositions": {}}`),
-			wantPos: Position{
+			wantPos: &Position{
 				TablePositions: map[string]TablePosition{},
 			},
 		},
@@ -99,7 +107,7 @@ func TestParseSDKPosition(t *testing.T) {
 					}
 				}
 			}`),
-			wantPos: Position{
+			wantPos: &Position{
 				TablePositions: map[string]TablePosition{
 					"table1": {
 						LastProcessedValue:  float64(10),
@@ -118,7 +126,7 @@ func TestParseSDKPosition(t *testing.T) {
 					}
 				}
 			}`),
-			wantPos: Position{
+			wantPos: &Position{
 				TablePositions: map[string]TablePosition{
 					"table1": {
 						LastProcessedValue:  "abc",
@@ -136,7 +144,7 @@ func TestParseSDKPosition(t *testing.T) {
 					}
 				}
 			}`),
-			wantPos: Position{
+			wantPos: &Position{
 				TablePositions: map[string]TablePosition{
 					"table1": {
 						LastProcessedValue: float64(10),
@@ -153,7 +161,7 @@ func TestParseSDKPosition(t *testing.T) {
 					}
 				}
 			}`),
-			wantPos: Position{
+			wantPos: &Position{
 				TablePositions: map[string]TablePosition{
 					"table1": {
 						LatestSnapshotValue: float64(30),
@@ -176,7 +184,7 @@ func TestParseSDKPosition(t *testing.T) {
 			got, err := ParseSDKPosition(tt.in)
 			if tt.wantErr == nil {
 				is.NoErr(err)
-				is.Equal(*got, tt.wantPos)
+				is.Equal(got, tt.wantPos)
 			} else {
 				is.True(err != nil)
 				is.Equal(err.Error(), tt.wantErr.Error())
@@ -190,17 +198,17 @@ func TestMarshal(t *testing.T) {
 
 	tests := []struct {
 		name string
-		in   Position
+		in   *Position
 		want opencdc.Position
 	}{
 		{
 			name: "success_empty_table_positions",
-			in:   Position{TablePositions: map[string]TablePosition{}},
+			in:   &Position{TablePositions: map[string]TablePosition{}},
 			want: opencdc.Position(`{"tablePositions":{}}`),
 		},
 		{
 			name: "success_single_table",
-			in: Position{
+			in: &Position{
 				TablePositions: map[string]TablePosition{
 					"table1": {
 						LastProcessedValue:  10,
@@ -212,7 +220,7 @@ func TestMarshal(t *testing.T) {
 		},
 		{
 			name: "success_multiple_tables",
-			in: Position{
+			in: &Position{
 				TablePositions: map[string]TablePosition{
 					"table1": {
 						LastProcessedValue:  "abc",
@@ -228,7 +236,7 @@ func TestMarshal(t *testing.T) {
 		},
 		{
 			name: "success_single_table_integer_fields",
-			in: Position{
+			in: &Position{
 				TablePositions: map[string]TablePosition{
 					"table1": {
 						LastProcessedValue:  10,
@@ -240,7 +248,7 @@ func TestMarshal(t *testing.T) {
 		},
 		{
 			name: "success_single_table_string_fields",
-			in: Position{
+			in: &Position{
 				TablePositions: map[string]TablePosition{
 					"table1": {
 						LastProcessedValue:  "abc",
@@ -252,7 +260,7 @@ func TestMarshal(t *testing.T) {
 		},
 		{
 			name: "success_single_table_lastProcessedValue_only",
-			in: Position{
+			in: &Position{
 				TablePositions: map[string]TablePosition{
 					"table1": {
 						LastProcessedValue: float64(10),
@@ -263,7 +271,7 @@ func TestMarshal(t *testing.T) {
 		},
 		{
 			name: "success_single_table_latestSnapshotValue_only",
-			in: Position{
+			in: &Position{
 				TablePositions: map[string]TablePosition{
 					"table1": {
 						LatestSnapshotValue: float64(30),
@@ -281,6 +289,143 @@ func TestMarshal(t *testing.T) {
 			got, err := tt.in.marshal()
 			is.NoErr(err)
 			is.Equal(got, tt.want)
+		})
+	}
+}
+
+func TestPosition_Update(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		initial   *Position
+		table     string
+		updatePos TablePosition
+		want      *Position
+	}{
+		{
+			name: "update_existing_table",
+			initial: &Position{
+				TablePositions: map[string]TablePosition{
+					"table1": {LastProcessedValue: 1, LatestSnapshotValue: 2},
+					"table2": {LastProcessedValue: 3, LatestSnapshotValue: 4},
+				},
+			},
+			table:     "table1",
+			updatePos: TablePosition{LastProcessedValue: 10, LatestSnapshotValue: 20},
+			want: &Position{
+				TablePositions: map[string]TablePosition{
+					"table1": {LastProcessedValue: 10, LatestSnapshotValue: 20},
+					"table2": {LastProcessedValue: 3, LatestSnapshotValue: 4},
+				},
+			},
+		},
+		{
+			name: "update_new_table",
+			initial: &Position{
+				TablePositions: map[string]TablePosition{
+					"table1": {LastProcessedValue: 1, LatestSnapshotValue: 2},
+				},
+			},
+			table:     "table2",
+			updatePos: TablePosition{LastProcessedValue: 3, LatestSnapshotValue: 4},
+			want: &Position{
+				TablePositions: map[string]TablePosition{
+					"table1": {LastProcessedValue: 1, LatestSnapshotValue: 2},
+					"table2": {LastProcessedValue: 3, LatestSnapshotValue: 4},
+				},
+			},
+		},
+		{
+			name: "update_with_nil_values",
+			initial: &Position{
+				TablePositions: map[string]TablePosition{
+					"table1": {LastProcessedValue: 1, LatestSnapshotValue: 2},
+				},
+			},
+			table:     "table1",
+			updatePos: TablePosition{LastProcessedValue: nil, LatestSnapshotValue: nil},
+			want: &Position{
+				TablePositions: map[string]TablePosition{
+					"table1": {LastProcessedValue: nil, LatestSnapshotValue: nil},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			is := is.New(t)
+
+			tt.initial.update(tt.table, tt.updatePos)
+			is.Equal(tt.initial, tt.want)
+		})
+	}
+}
+
+func TestPosition_Get(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		initial    *Position
+		table      string
+		wantPos    TablePosition
+		wantExists bool
+	}{
+		{
+			name: "get_existing_table",
+			initial: &Position{
+				TablePositions: map[string]TablePosition{
+					"table1": {LastProcessedValue: 1, LatestSnapshotValue: 2},
+				},
+			},
+			table:      "table1",
+			wantPos:    TablePosition{LastProcessedValue: 1, LatestSnapshotValue: 2},
+			wantExists: true,
+		},
+		{
+			name: "get_non_existing_table",
+			initial: &Position{
+				TablePositions: map[string]TablePosition{
+					"table1": {LastProcessedValue: 1, LatestSnapshotValue: 2},
+				},
+			},
+			table:      "table2",
+			wantPos:    TablePosition{},
+			wantExists: false,
+		},
+		{
+			name: "get_from_empty_positions",
+			initial: &Position{
+				TablePositions: map[string]TablePosition{},
+			},
+			table:      "table1",
+			wantPos:    TablePosition{},
+			wantExists: false,
+		},
+		{
+			name: "get_table_with_nil_values",
+			initial: &Position{
+				TablePositions: map[string]TablePosition{
+					"table1": {LastProcessedValue: nil, LatestSnapshotValue: nil},
+				},
+			},
+			table:      "table1",
+			wantPos:    TablePosition{LastProcessedValue: nil, LatestSnapshotValue: nil},
+			wantExists: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			is := is.New(t)
+
+			gotPos, exists := tt.initial.get(tt.table)
+			is.Equal(exists, tt.wantExists)
+			is.Equal(gotPos, tt.wantPos)
 		})
 	}
 }

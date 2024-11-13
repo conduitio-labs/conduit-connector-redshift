@@ -19,6 +19,7 @@ package config
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/common"
 )
@@ -41,6 +42,8 @@ type Config struct {
 	Snapshot bool `json:"snapshot" default:"true"`
 	// BatchSize is a size of rows batch.
 	BatchSize int `json:"batchSize" default:"1000" validate:"gt=0,lt=100001"`
+	// This period is used by iterator to poll for new data at regular intervals.
+	PollingPeriod time.Duration `json:"pollingPeriod" default:"5s"`
 }
 
 type TableConfig struct {

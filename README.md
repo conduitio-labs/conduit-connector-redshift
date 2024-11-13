@@ -57,6 +57,7 @@ pagination, limiting by `batchSize` and ordering by `orderingColumn`.
 | `snapshot`       | Whether the connector will take a snapshot of the entire table before starting cdc mode.                                                                                   | false    | `false`                                               | "true"        |
 | ~~`keyColumns`~~     | Comma-separated list of column names to build the `sdk.Record.Key`. **Deprecated: use `tables.*.keyColumns` instead.**                                                               | false    | `id,name`                                             |               |
 | `batchSize`      | Size of rows batch. Min is 1 and max is 100000.                                                                                                                            | false    | `100`                                                 | "1000"        |
+| `pollingPeriod`      | The duration for polling Redshift for fetching new records.                                                                                                                            | false    | `3s`                                                 | "5s"        |
 
 ### Example
 
