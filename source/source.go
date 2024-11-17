@@ -50,7 +50,6 @@ type Source struct {
 // NewSource initialises a new source.
 func NewSource() sdk.Source {
 	return sdk.SourceWithMiddleware(&Source{}, sdk.DefaultSourceMiddleware(
-		// disable schema extraction by default, redshift will build its own schema
 		sdk.SourceWithSchemaExtractionConfig{
 			PayloadEnabled: lang.Ptr(false),
 			KeyEnabled:     lang.Ptr(false),

@@ -62,6 +62,10 @@ func (d *driver) GenerateRecord(_ *testing.T, operation opencdc.Operation) openc
 	}
 }
 
+func (d *driver) WriteTimeout() time.Duration {
+	return time.Minute
+}
+
 func TestAcceptance(t *testing.T) {
 	dsn := os.Getenv(envNameDSN)
 	if dsn == "" {
