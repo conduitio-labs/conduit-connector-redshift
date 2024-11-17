@@ -68,20 +68,30 @@ func TestAcceptance(t *testing.T) {
 		t.Skipf("%s env var must be set", envNameDSN)
 	}
 
-	cfg := map[string]string{
+	table := fmt.Sprintf("conduit_test_%d", time.Now().UnixNano())
+
+	srcCfg := map[string]string{
 		srcConfig.ConfigDsn:            dsn,
-		srcConfig.ConfigTable:          fmt.Sprintf("conduit_test_%d", time.Now().UnixNano()),
+		srcConfig.ConfigTable:          table,
 		srcConfig.ConfigOrderingColumn: "col1",
+	}
+
+	destCfg := map[string]string{
+		destConfig.ConfigDsn:        dsn,
+		destConfig.ConfigTable:      table,
+		destConfig.ConfigKeyColumns: "col1",
 	}
 
 	sdk.AcceptanceTest(t, &driver{
 		ConfigurableAcceptanceTestDriver: sdk.ConfigurableAcceptanceTestDriver{
 			Config: sdk.ConfigurableAcceptanceTestDriverConfig{
 				Connector:         Connector,
-				SourceConfig:      cfg,
-				DestinationConfig: cfg,
-				BeforeTest:        beforeTest(cfg),
-				AfterTest:         afterTest(cfg),
+				SourceConfig:      srcCfg,
+				DestinationConfig: destCfg,
+				BeforeTest:        beforeTest(destCfg),
+				AfterTest:         afterTest(destCfg),
+				// some parameters contains "*" which is a valid character in source parameter
+				Skip: []string{"TestSource_Parameters_Success"},
 			},
 		},
 	})
