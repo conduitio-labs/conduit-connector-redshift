@@ -386,7 +386,7 @@ func TestSource_Read_checkTypes(t *testing.T) {
 
 	record, err := src.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Key, opencdc.StructuredData(map[string]interface{}{orderingColumn: int64(want.SmallIntType)}))
+	is.Equal(record.Key, opencdc.RawData([]byte{2}))
 
 	got := dataRow{}
 	err = json.Unmarshal(record.Payload.After.Bytes(), &got)
