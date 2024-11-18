@@ -53,9 +53,7 @@ func (d *driver) GenerateRecord(_ *testing.T, operation opencdc.Operation) openc
 		Metadata: map[string]string{
 			opencdc.MetadataCollection: d.Config.SourceConfig[srcConfig.ConfigTable],
 		},
-		Key: opencdc.StructuredData{
-			"col1": d.id,
-		},
+		Key: opencdc.RawData(encodeKey(d.id)),
 		Payload: opencdc.Change{After: opencdc.RawData(
 			fmt.Sprintf(`{"col1":%d,"col2":"%s"}`, d.id, uuid.NewString()),
 		)},
@@ -131,4 +129,16 @@ func afterTest(cfg map[string]string) func(*testing.T) {
 		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s", cfg[destConfig.ConfigTable]))
 		is.NoErr(err)
 	}
+}
+
+// encodeKey converts an id into Avro-style variable-length zigzag encoding as a byte slice.
+func encodeKey(id int64) []byte {
+	value := id * 2
+	var result []byte
+	for value >= 0x80 {
+		result = append(result, byte((value&0x7F)|0x80)) // Take 7 bits, set MSB to 1
+		value >>= 7                                      // Shift 7 bits for next chunk
+	}
+	result = append(result, byte(value)) // Add final byte with MSB = 0
+	return result
 }
