@@ -153,10 +153,7 @@ func TestSource_Read_keyColumnsFromConfig(t *testing.T) {
 
 	record, err := src.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Key, opencdc.StructuredData(map[string]any{
-		"col1": int64(1),
-		"col2": int64(2),
-	}))
+	is.Equal(record.Key, opencdc.RawData([]byte{2, 4}))
 
 	cancel()
 
@@ -206,11 +203,7 @@ func TestSource_Read_keyColumnsFromTableMetadata(t *testing.T) {
 
 	record, err := src.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Key, opencdc.StructuredData(map[string]any{
-		"col1": int64(1),
-		"col2": int64(2),
-		"col3": int64(3),
-	}))
+	is.Equal(record.Key, opencdc.RawData([]byte{2, 4, 6}))
 
 	cancel()
 
@@ -258,9 +251,7 @@ func TestSource_Read_keyColumnsFromOrderingColumn(t *testing.T) {
 
 	record, err := src.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Key, opencdc.StructuredData(map[string]any{
-		"col1": int64(1),
-	}))
+	is.Equal(record.Key, opencdc.RawData([]byte{2}))
 
 	cancel()
 
@@ -475,9 +466,7 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 
 	record, err := src.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Key, opencdc.StructuredData(map[string]any{
-		"col1": int64(3),
-	}))
+	is.Equal(record.Key, opencdc.RawData([]byte{6}))
 	is.Equal(record.Operation, opencdc.OperationCreate)
 
 	_, err = src.Read(ctx)

@@ -140,5 +140,6 @@ func encodeKey(id int64) []byte {
 		value >>= 7                                      // Shift 7 bits for next chunk
 	}
 	result = append(result, byte(value)) // Add final byte with MSB = 0
+
 	return result
 }
