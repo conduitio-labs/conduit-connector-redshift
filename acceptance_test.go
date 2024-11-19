@@ -21,7 +21,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/conduitio-labs/conduit-connector-redshift/destination"
 	destConfig "github.com/conduitio-labs/conduit-connector-redshift/destination/config"
+	"github.com/conduitio-labs/conduit-connector-redshift/source"
 	srcConfig "github.com/conduitio-labs/conduit-connector-redshift/source/config"
 	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
@@ -53,7 +55,9 @@ func (d *driver) GenerateRecord(_ *testing.T, operation opencdc.Operation) openc
 		Metadata: map[string]string{
 			opencdc.MetadataCollection: d.Config.SourceConfig[srcConfig.ConfigTable],
 		},
-		Key: opencdc.RawData(encodeKey(d.id)),
+		Key: opencdc.StructuredData{
+			"col1": d.id,
+		},
 		Payload: opencdc.Change{After: opencdc.RawData(
 			fmt.Sprintf(`{"col1":%d,"col2":"%s"}`, d.id, uuid.NewString()),
 		)},
@@ -87,7 +91,13 @@ func TestAcceptance(t *testing.T) {
 	sdk.AcceptanceTest(t, &driver{
 		ConfigurableAcceptanceTestDriver: sdk.ConfigurableAcceptanceTestDriver{
 			Config: sdk.ConfigurableAcceptanceTestDriverConfig{
-				Connector:         Connector,
+				Connector: sdk.Connector{
+					NewSpecification: Specification,
+					NewSource: func() sdk.Source {
+						return sdk.Source(&source.Source{})
+					},
+					NewDestination: destination.NewDestination,
+				},
 				SourceConfig:      srcCfg,
 				DestinationConfig: destCfg,
 				BeforeTest:        beforeTest(destCfg),
@@ -129,17 +139,4 @@ func afterTest(cfg map[string]string) func(*testing.T) {
 		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s", cfg[destConfig.ConfigTable]))
 		is.NoErr(err)
 	}
-}
-
-// encodeKey converts an id into Avro-style variable-length zigzag encoding as a byte slice.
-func encodeKey(id int64) []byte {
-	value := id * 2
-	var result []byte
-	for value >= 0x80 {
-		result = append(result, byte((value&0x7F)|0x80)) // Take 7 bits, set MSB to 1
-		value >>= 7                                      // Shift 7 bits for next chunk
-	}
-	result = append(result, byte(value)) // Add final byte with MSB = 0
-
-	return result
 }

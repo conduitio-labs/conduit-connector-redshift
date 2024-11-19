@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"github.com/conduitio-labs/conduit-connector-redshift/source/config"
 	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
+	"github.com/conduitio/conduit-connector-sdk/schema"
 	"github.com/jmoiron/sqlx"
 	"github.com/matryer/is"
 )
@@ -153,7 +155,14 @@ func TestSource_Read_keyColumnsFromConfig(t *testing.T) {
 
 	record, err := src.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Key, opencdc.RawData([]byte{2, 4}))
+
+	decodedKey, err := getDecodedKey(ctx, record)
+	is.NoErr(err)
+
+	is.Equal(decodedKey, opencdc.StructuredData(map[string]any{
+		"col1": int64(1),
+		"col2": int64(2),
+	}))
 
 	cancel()
 
@@ -203,7 +212,15 @@ func TestSource_Read_keyColumnsFromTableMetadata(t *testing.T) {
 
 	record, err := src.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Key, opencdc.RawData([]byte{2, 4, 6}))
+
+	decodedKey, err := getDecodedKey(ctx, record)
+	is.NoErr(err)
+
+	is.Equal(decodedKey, opencdc.StructuredData(map[string]any{
+		"col1": int64(1),
+		"col2": int64(2),
+		"col3": int64(3),
+	}))
 
 	cancel()
 
@@ -251,7 +268,13 @@ func TestSource_Read_keyColumnsFromOrderingColumn(t *testing.T) {
 
 	record, err := src.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Key, opencdc.RawData([]byte{2}))
+
+	decodedKey, err := getDecodedKey(ctx, record)
+	is.NoErr(err)
+
+	is.Equal(decodedKey, opencdc.StructuredData(map[string]any{
+		"col1": int64(1),
+	}))
 
 	cancel()
 
@@ -386,7 +409,11 @@ func TestSource_Read_checkTypes(t *testing.T) {
 
 	record, err := src.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Key, opencdc.RawData([]byte{2}))
+
+	decodedKey, err := getDecodedKey(ctx, record)
+	is.NoErr(err)
+
+	is.Equal(decodedKey, opencdc.StructuredData(map[string]interface{}{orderingColumn: int64(want.SmallIntType)}))
 
 	got := dataRow{}
 	err = json.Unmarshal(record.Payload.After.Bytes(), &got)
@@ -466,7 +493,13 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 
 	record, err := src.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Key, opencdc.RawData([]byte{6}))
+
+	decodedKey, err := getDecodedKey(ctx, record)
+	is.NoErr(err)
+
+	is.Equal(decodedKey, opencdc.StructuredData(map[string]any{
+		"col1": int64(3),
+	}))
 	is.Equal(record.Operation, opencdc.OperationCreate)
 
 	_, err = src.Read(ctx)
@@ -496,4 +529,28 @@ func prepareConfig(t *testing.T, orderingColumn string, keyColumns ...string) ma
 		config.ConfigOrderingColumn: orderingColumn,
 		config.ConfigKeyColumns:     strings.Join(keyColumns, ","),
 	}
+}
+
+func getDecodedKey(ctx context.Context, record opencdc.Record) (opencdc.StructuredData, error) {
+	key := opencdc.StructuredData{}
+
+	keySchemaVersion, err := strconv.Atoi(record.Metadata[opencdc.MetadataKeySchemaVersion])
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse key schema version: %w", err)
+	}
+
+	sch, err := schema.Get(ctx, record.Metadata[opencdc.MetadataKeySchemaSubject], keySchemaVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get schema for subject %q version %d: %w",
+			record.Metadata[opencdc.MetadataKeySchemaSubject],
+			keySchemaVersion,
+			err)
+	}
+
+	err = sch.Unmarshal(record.Key.Bytes(), &key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal key using schema: %w", err)
+	}
+
+	return key, nil
 }
