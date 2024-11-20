@@ -21,7 +21,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/conduitio-labs/conduit-connector-redshift/destination"
 	destConfig "github.com/conduitio-labs/conduit-connector-redshift/destination/config"
+	"github.com/conduitio-labs/conduit-connector-redshift/source"
 	srcConfig "github.com/conduitio-labs/conduit-connector-redshift/source/config"
 	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
@@ -62,26 +64,46 @@ func (d *driver) GenerateRecord(_ *testing.T, operation opencdc.Operation) openc
 	}
 }
 
+func (d *driver) WriteTimeout() time.Duration {
+	return time.Minute
+}
+
 func TestAcceptance(t *testing.T) {
 	dsn := os.Getenv(envNameDSN)
 	if dsn == "" {
 		t.Skipf("%s env var must be set", envNameDSN)
 	}
 
-	cfg := map[string]string{
+	table := fmt.Sprintf("conduit_test_%d", time.Now().UnixNano())
+
+	srcCfg := map[string]string{
 		srcConfig.ConfigDsn:            dsn,
-		srcConfig.ConfigTable:          fmt.Sprintf("conduit_test_%d", time.Now().UnixNano()),
+		srcConfig.ConfigTable:          table,
 		srcConfig.ConfigOrderingColumn: "col1",
+	}
+
+	destCfg := map[string]string{
+		destConfig.ConfigDsn:        dsn,
+		destConfig.ConfigTable:      table,
+		destConfig.ConfigKeyColumns: "col1",
 	}
 
 	sdk.AcceptanceTest(t, &driver{
 		ConfigurableAcceptanceTestDriver: sdk.ConfigurableAcceptanceTestDriver{
 			Config: sdk.ConfigurableAcceptanceTestDriverConfig{
-				Connector:         Connector,
-				SourceConfig:      cfg,
-				DestinationConfig: cfg,
-				BeforeTest:        beforeTest(cfg),
-				AfterTest:         afterTest(cfg),
+				Connector: sdk.Connector{
+					NewSpecification: Specification,
+					NewSource: func() sdk.Source {
+						return sdk.Source(&source.Source{})
+					},
+					NewDestination: destination.NewDestination,
+				},
+				SourceConfig:      srcCfg,
+				DestinationConfig: destCfg,
+				BeforeTest:        beforeTest(destCfg),
+				AfterTest:         afterTest(destCfg),
+				// some parameters contains "*" which is a valid character in source parameter
+				Skip: []string{"TestSource_Parameters_Success"},
 			},
 		},
 	})

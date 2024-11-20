@@ -304,7 +304,7 @@ func (w *Writer) extractColumnsAndValues(payload opencdc.StructuredData) ([]stri
 
 // populateKey populates the key from the payload by provided keyColumns keys if it's empty and a static table is provided.
 func (w *Writer) populateKey(key opencdc.StructuredData, payload opencdc.StructuredData) (opencdc.StructuredData, error) {
-	if key != nil {
+	if len(key) != 0 {
 		return key, nil
 	}
 

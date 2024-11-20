@@ -84,6 +84,31 @@ pipelines:
 ```
 
 
+### Example
+
+#### Collections
+
+The following configuration reads records from `users` and `orders` table
+
+```yaml
+version: 2.2
+pipelines:
+  - id: example
+    status: running
+    connectors:
+      - id: example
+        type: source
+        plugin: redshift
+        settings:
+          dsn: "sample_dsn"
+          # table "users"
+          tables.users.orderingColumn: "foo"
+          tables.users.keyColumns: "foo,bar"
+          # table "orders"
+          tables.orders.orderingColumn: "id"
+```
+
+
 ### Key handling
 
 The connector builds `sdk.Record.Key` as `sdk.StructuredData`. The keys of this field consist of elements of

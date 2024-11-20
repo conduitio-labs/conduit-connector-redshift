@@ -44,9 +44,9 @@ type Iterator struct {
 
 	// table is a table name
 	table string
-	// keyColumns are table column which the table iterator will use to create a record's key
+	// keyColumns are table column which the iterator will use to create a record's key
 	keyColumns []string
-	// orderingColumn is the name of the column that table iterator will use for sorting data
+	// orderingColumn is the name of the column that iterator will use for sorting data
 	orderingColumn string
 	// batchSize is the size of a batch retrieved from Redshift
 	batchSize int
