@@ -26,7 +26,6 @@ import (
 
 	"github.com/conduitio-labs/conduit-connector-redshift/source/config"
 	"github.com/conduitio/conduit-commons/opencdc"
-	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/conduitio/conduit-connector-sdk/schema"
 	"github.com/jmoiron/sqlx"
 	"github.com/matryer/is"
@@ -62,8 +61,7 @@ func TestSource_Read_tableDoesNotExist(t *testing.T) {
 	is.NoErr(err)
 
 	err = src.Open(ctx, nil)
-	is.True(strings.Contains(err.Error(),
-		fmt.Sprintf("new iterator: create iterator for table %s: get latest snapshot value: execute select latest snapshot value", cfg[config.ConfigTable])))
+	is.True(strings.Contains(err.Error(), "new iterator: get latest snapshot value: execute select latest snapshot value query"))
 
 	cancel()
 }
@@ -78,10 +76,7 @@ func TestSource_Read_tableHasNoData(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), pingTimeout)
 	defer cancel()
 
 	err = db.PingContext(ctxTimeout)
@@ -95,7 +90,12 @@ func TestSource_Read_tableHasNoData(t *testing.T) {
 		is.NoErr(err)
 	}()
 
+	cancel()
+
 	src := NewSource()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	err = src.Configure(ctx, cfg)
 	is.NoErr(err)
@@ -104,7 +104,7 @@ func TestSource_Read_tableHasNoData(t *testing.T) {
 	is.NoErr(err)
 
 	_, err = src.Read(ctx)
-	is.Equal(err, sdk.ErrBackoffRetry)
+	is.Equal(err, context.DeadlineExceeded)
 
 	cancel()
 
@@ -122,10 +122,7 @@ func TestSource_Read_keyColumnsFromConfig(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), pingTimeout)
 	defer cancel()
 
 	err = db.PingContext(ctxTimeout)
@@ -142,7 +139,12 @@ func TestSource_Read_keyColumnsFromConfig(t *testing.T) {
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
+	cancel()
+
 	src := NewSource()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	err = src.Configure(ctx, cfg)
 	is.NoErr(err)
@@ -177,10 +179,7 @@ func TestSource_Read_keyColumnsFromTableMetadata(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), pingTimeout)
 	defer cancel()
 
 	err = db.PingContext(ctxTimeout)
@@ -199,7 +198,12 @@ func TestSource_Read_keyColumnsFromTableMetadata(t *testing.T) {
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2, 3);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
+	cancel()
+
 	src := NewSource()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	err = src.Configure(ctx, cfg)
 	is.NoErr(err)
@@ -235,10 +239,7 @@ func TestSource_Read_keyColumnsFromOrderingColumn(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), pingTimeout)
 	defer cancel()
 
 	err = db.PingContext(ctxTimeout)
@@ -255,7 +256,12 @@ func TestSource_Read_keyColumnsFromOrderingColumn(t *testing.T) {
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
+	cancel()
+
 	src := NewSource()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	err = src.Configure(ctx, cfg)
 	is.NoErr(err)
@@ -315,10 +321,7 @@ func TestSource_Read_checkTypes(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), pingTimeout)
 	defer cancel()
 
 	err = db.PingContext(ctxTimeout)
@@ -396,7 +399,12 @@ func TestSource_Read_checkTypes(t *testing.T) {
 		want.VarbyteType)
 	is.NoErr(err)
 
+	cancel()
+
 	src := NewSource()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	err = src.Configure(ctx, cfg)
 	is.NoErr(err)
@@ -452,13 +460,10 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 	is.NoErr(err)
 	defer db.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	dbCtx, dbCtxCancel := context.WithTimeout(context.Background(), pingTimeout)
+	defer dbCtxCancel()
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, pingTimeout)
-	defer cancel()
-
-	err = db.PingContext(ctxTimeout)
+	err = db.PingContext(dbCtx)
 	is.NoErr(err)
 
 	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.ConfigTable]))
@@ -475,6 +480,9 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 
 	src := NewSource()
 
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	err = src.Configure(ctx, cfg)
 	is.NoErr(err)
 
@@ -482,7 +490,24 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 	is.NoErr(err)
 
 	_, err = src.Read(ctx)
-	is.Equal(err, sdk.ErrBackoffRetry)
+	is.Equal(err, context.DeadlineExceeded)
+
+	cancel()
+
+	err = src.Teardown(context.Background())
+	is.NoErr(err)
+
+	// open a new source this time to read data in cdc mode
+	src = NewSource()
+
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err = src.Configure(ctx, cfg)
+	is.NoErr(err)
+
+	err = src.Open(ctx, nil)
+	is.NoErr(err)
 
 	// insert an additional row
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (3, 4);", cfg[config.ConfigTable]))
@@ -500,7 +525,7 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 	is.Equal(record.Operation, opencdc.OperationCreate)
 
 	_, err = src.Read(ctx)
-	is.Equal(err, sdk.ErrBackoffRetry)
+	is.Equal(err, context.DeadlineExceeded)
 
 	cancel()
 
