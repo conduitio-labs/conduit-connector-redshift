@@ -158,12 +158,18 @@ func (s *Source) Ack(ctx context.Context, position opencdc.Position) error {
 // Teardown gracefully shutdown connector.
 func (s *Source) Teardown(ctx context.Context) error {
 	sdk.Logger(ctx).Info().Msg("Tearing down the Amazon Redshift Source")
-	// wait for goroutines to finish
-	s.wg.Wait()
-	// close the read channel for write
-	close(s.ch)
-	// reset read channel to nil, to avoid reading buffered records
-	s.ch = nil
+
+	if s.wg != nil {
+		// wait for goroutines to finish
+		s.wg.Wait()
+	}
+
+	if s.ch != nil {
+		// close the read channel for write
+		close(s.ch)
+		// reset read channel to nil, to avoid reading buffered records
+		s.ch = nil
+	}
 
 	if s.db != nil {
 		err := s.db.Close()
@@ -171,5 +177,6 @@ func (s *Source) Teardown(ctx context.Context) error {
 			return fmt.Errorf("close db: %w", err)
 		}
 	}
+
 	return nil
 }
