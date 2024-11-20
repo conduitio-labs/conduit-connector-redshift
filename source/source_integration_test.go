@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -534,17 +533,19 @@ func prepareConfig(t *testing.T, orderingColumn string, keyColumns ...string) ma
 func getDecodedKey(ctx context.Context, record opencdc.Record) (opencdc.StructuredData, error) {
 	key := opencdc.StructuredData{}
 
-	keySchemaVersion, err := strconv.Atoi(record.Metadata[opencdc.MetadataKeySchemaVersion])
+	keySchemaVersion, err := record.Metadata.GetKeySchemaVersion()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse key schema version: %w", err)
+		return nil, fmt.Errorf("failed to get key schema version: %w", err)
 	}
 
-	sch, err := schema.Get(ctx, record.Metadata[opencdc.MetadataKeySchemaSubject], keySchemaVersion)
+	keySchemaSubject, err := record.Metadata.GetKeySchemaSubject()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get schema for subject %q version %d: %w",
-			record.Metadata[opencdc.MetadataKeySchemaSubject],
-			keySchemaVersion,
-			err)
+		return nil, fmt.Errorf("failed to get key schema subject: %w", err)
+	}
+
+	sch, err := schema.Get(ctx, keySchemaSubject, keySchemaVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get schema for subject %q version %d: %w", keySchemaSubject, keySchemaVersion, err)
 	}
 
 	err = sch.Unmarshal(record.Key.Bytes(), &key)
