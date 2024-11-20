@@ -28,6 +28,48 @@ const (
 						abcdefghijklmnopqrstuvwxyz_zyxwvutsrqponmlkjihgfedcba_xxxxxxxx`
 )
 
+func TestConfig_Init(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		in       Config
+		expected string
+	}{
+		{
+			name: "table already lowercase",
+			in: Config{
+				Table: testValueTable,
+			},
+			expected: testValueTable,
+		},
+		{
+			name: "table in uppercase",
+			in: Config{
+				Table: "TEST_TABLE",
+			},
+			expected: testValueTable,
+		},
+		{
+			name: "table mixed case",
+			in: Config{
+				Table: "Test_Table",
+			},
+			expected: testValueTable,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			is := is.New(t)
+			result := tt.in.Init()
+			is.Equal(result.Table, tt.expected)
+		})
+	}
+}
+
 func TestValidateConfig(t *testing.T) {
 	t.Parallel()
 
@@ -39,108 +81,98 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "success_keyColumns_has_one_key",
 			in: &Config{
-				common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id"},
+				Configuration: common.Configuration{
+					DSN: testValueDSN,
 				},
+				Table:      testValueTable,
+				KeyColumns: []string{"id"},
 			},
 			wantErr: nil,
 		},
 		{
 			name: "success_keyColumns_has_two_keys",
 			in: &Config{
-				common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id", "name"},
+				Configuration: common.Configuration{
+					DSN: testValueDSN,
 				},
+				Table:      testValueTable,
+				KeyColumns: []string{"id", "name"},
 			},
 			wantErr: nil,
 		},
 		{
 			name: "success_keyColumns_ends_with_space",
 			in: &Config{
-				common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id", "name "},
+				Configuration: common.Configuration{
+					DSN: testValueDSN,
 				},
+				Table:      testValueTable,
+				KeyColumns: []string{"id", "name "},
 			},
 			wantErr: common.NewExcludesSpacesError(ConfigKeyColumns),
 		},
 		{
 			name: "success_keyColumns_starts_with_space",
 			in: &Config{
-				common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id", "name "},
+				Configuration: common.Configuration{
+					DSN: testValueDSN,
 				},
+				Table:      testValueTable,
+				KeyColumns: []string{"id", "name "},
 			},
 			wantErr: common.NewExcludesSpacesError(ConfigKeyColumns),
 		},
 		{
 			name: "success_keyColumns_has_two_spaces",
 			in: &Config{
-				common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"id", "  name"},
+				Configuration: common.Configuration{
+					DSN: testValueDSN,
 				},
+				Table:      testValueTable,
+				KeyColumns: []string{"id", "  name"},
 			},
 			wantErr: common.NewExcludesSpacesError(ConfigKeyColumns),
 		},
 		{
 			name: "failure_table_has_space",
 			in: &Config{
-				common.Configuration{
-					DSN:   testValueDSN,
-					Table: "test table",
+				Configuration: common.Configuration{
+					DSN: testValueDSN,
 				},
+				Table: "test table",
 			},
 			wantErr: common.NewExcludesSpacesError(ConfigTable),
 		},
 		{
-			name: "failure_table_has_uppercase_letter",
-			in: &Config{
-				common.Configuration{
-					DSN:   testValueDSN,
-					Table: "Test_table",
-				},
-			},
-			wantErr: common.NewLowercaseError(ConfigTable),
-		},
-		{
 			name: "failure_keyColumns_has_uppercase_letter",
 			in: &Config{
-				common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{"ID"},
+				Configuration: common.Configuration{
+					DSN: testValueDSN,
 				},
+				Table:      testValueTable,
+				KeyColumns: []string{"ID"},
 			},
 			wantErr: common.NewLowercaseError(ConfigKeyColumns),
 		},
 		{
 			name: "failure_keyColumns_exceeds_max_length",
 			in: &Config{
-				common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testValueTable,
-					KeyColumns: []string{testLongString},
+				Configuration: common.Configuration{
+					DSN: testValueDSN,
 				},
+				Table:      testValueTable,
+				KeyColumns: []string{testLongString},
 			},
 			wantErr: common.NewLessThanError(ConfigKeyColumns, common.MaxConfigStringLength),
 		},
 		{
 			name: "failure_table_exceeds_max_length",
 			in: &Config{
-				common.Configuration{
-					DSN:        testValueDSN,
-					Table:      testLongString,
-					KeyColumns: []string{"id"},
+				Configuration: common.Configuration{
+					DSN: testValueDSN,
 				},
+				Table:      testLongString,
+				KeyColumns: []string{"id"},
 			},
 			wantErr: common.NewLessThanError(ConfigTable, common.MaxConfigStringLength),
 		},

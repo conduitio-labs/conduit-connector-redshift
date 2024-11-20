@@ -47,9 +47,14 @@ func TestSource_Configure_requiredFieldsSuccess(t *testing.T) {
 	is.NoErr(err)
 	is.Equal(s.config, config.Config{
 		Configuration: common.Configuration{
-			DSN:   testDSN,
-			Table: testTable,
+			DSN: testDSN,
 		},
+		Tables: func() map[string]config.TableConfig {
+			tables := make(map[string]config.TableConfig)
+			tables[testTable] = config.TableConfig{OrderingColumn: "created_at"}
+
+			return tables
+		}(),
 		OrderingColumn: "created_at",
 		Snapshot:       true,
 		BatchSize:      1000,
@@ -74,10 +79,14 @@ func TestSource_Configure_allFieldsSuccess(t *testing.T) {
 	is.NoErr(err)
 	is.Equal(s.config, config.Config{
 		Configuration: common.Configuration{
-			DSN:        testDSN,
-			Table:      testTable,
-			KeyColumns: []string{"id", "name"},
+			DSN: testDSN,
 		},
+		Tables: func() map[string]config.TableConfig {
+			return map[string]config.TableConfig{
+				testTable: {OrderingColumn: "created_at", KeyColumns: []string{"id", "name"}},
+			}
+		}(),
+		KeyColumns:     []string{"id", "name"},
 		OrderingColumn: "created_at",
 		Snapshot:       false,
 		BatchSize:      10000,
@@ -96,7 +105,7 @@ func TestSource_Configure_failure(t *testing.T) {
 		config.ConfigTable: testTable,
 	})
 	is.True(err != nil)
-	is.Equal(err.Error(), `config invalid: error validating "orderingColumn": required parameter is not provided`)
+	is.Equal(err.Error(), "error validating configuration: error validating \"tables\": required parameter is not provided")
 }
 
 func TestSource_Read_success(t *testing.T) {
@@ -127,7 +136,6 @@ func TestSource_Read_success(t *testing.T) {
 
 	r, err := s.Read(ctx)
 	is.NoErr(err)
-
 	is.Equal(r, record)
 }
 

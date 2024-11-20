@@ -25,17 +25,15 @@ func (Config) Parameters() map[string]config.Parameter {
 		},
 		ConfigKeyColumns: {
 			Default:     "",
-			Description: "KeyColumns is the configuration list of column names to build the opencdc.Record.Key (for Source).",
+			Description: "KeyColumns is the configuration of comma-separated column names to build the record key.",
 			Type:        config.ParameterTypeString,
 			Validations: []config.Validation{},
 		},
 		ConfigTable: {
-			Default:     "",
+			Default:     "{{ index .Metadata \"opencdc.collection\" }}",
 			Description: "Table is the configuration of the table name.",
 			Type:        config.ParameterTypeString,
-			Validations: []config.Validation{
-				config.ValidationRequired{},
-			},
+			Validations: []config.Validation{},
 		},
 	}
 }

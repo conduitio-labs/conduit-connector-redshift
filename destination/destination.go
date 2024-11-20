@@ -66,6 +66,8 @@ func (d *Destination) Configure(ctx context.Context, cfg commonsConfig.Config) e
 		return err //nolint: wrapcheck // not needed here
 	}
 
+	d.config = d.config.Init()
+
 	err = d.config.Validate()
 	if err != nil {
 		return fmt.Errorf("error validating configuration: %w", err)

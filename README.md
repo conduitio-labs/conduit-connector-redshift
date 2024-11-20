@@ -21,8 +21,8 @@ to the environment variables as an `REDSHIFT_DSN`.
 
 ## Source
 
-Conduit's Redshift source connector allows you to move data from a Redshift table with the specified `dsn` and `table`
-configuration parameters. Upon starting, the source connector takes a snapshot of a given table in the database, then 
+Conduit's Redshift source connector allows you to move data from Redshift tables with the specified `dsn` and `tables`
+configuration parameters. Upon starting, the source connector takes a snapshot of given tables in the database, then 
 switches into change data capture (CDC) mode. In CDC mode, the connector will only detect new rows.
 
 ### Snapshots
@@ -42,25 +42,57 @@ pagination, limiting by `batchSize` and ordering by `orderingColumn`.
 
 ### Configuration
 
+> [!IMPORTANT]
+> Parameters starting with `tables.*` are used to configure the orderingColumn and
+> keyColumns for a specific table. The `*` in the parameter name should be
+> replaced with the table name.
+
 | name             | description                                                                                                                                                                | required | example                                               | default value |
 |------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|-------------------------------------------------------|---------------|
 | `dsn`            | [DSN](https://en.wikipedia.org/wiki/Data_source_name) to connect to Redshift.                                                                                              | **true** | `postgres://username:password@endpoint:5439/database` |               |
-| `table`          | Name of the table from which the connector reads from.                                                                                                                     | **true** | `table_name`                                          |               |
-| `orderingColumn` | Column used to order the rows. <br /> Keep in mind that the data will be sorted by this column, so the column must contain unique, consistent values suitable for sorting. | **true** | `id`                                                  |               |
+| `tables.*.orderingColumn`                  | Column used to order the rows. <br /> Keep in mind that the data will be sorted by this column, so the column must contain unique, consistent values suitable for sorting.    | true     |               |
+| `tables.*.keyColumns`                  | Comma-separated list of column names to build the sdk.Record.Key. See more: [Key handling](#key-handling).   | false     |               |
+| ~~`table`~~          | Name of the table from which the connector reads from. **Deprecated: use `tables` instead.**                                                                                                                     | **false** | `table_name`                                          |               |
+| ~~`orderingColumn`~~ | Column used to order the rows. <br /> Keep in mind that the data will be sorted by this column, so the column must contain unique, consistent values suitable for sorting. **Deprecated: use `tables.*.orderingColumn` instead.** | **false** | `id`                                                  |               |
 | `snapshot`       | Whether the connector will take a snapshot of the entire table before starting cdc mode.                                                                                   | false    | `false`                                               | "true"        |
-| `keyColumns`     | Comma-separated list of column names to build the `sdk.Record.Key`. See more: [Key handling](#key-handling).                                                               | false    | `id,name`                                             |               |
+| ~~`keyColumns`~~     | Comma-separated list of column names to build the `sdk.Record.Key`. **Deprecated: use `tables.*.keyColumns` instead.**                                                               | false    | `id,name`                                             |               |
 | `batchSize`      | Size of rows batch. Min is 1 and max is 100000.                                                                                                                            | false    | `100`                                                 | "1000"        |
+
+### Example
+
+#### Collections
+
+The following configuration reads records from `users` and `orders` table
+
+```yaml
+version: 2.2
+pipelines:
+  - id: example
+    status: running
+    connectors:
+      - id: example
+        type: source
+        plugin: redshift
+        settings:
+          dsn: "sample_dsn"
+          # table "users"
+          tables.users.orderingColumn: "foo"
+          tables.users.keyColumns: "foo,bar"
+          # table "orders"
+          tables.orders.orderingColumn: "id"
+```
+
 
 ### Key handling
 
 The connector builds `sdk.Record.Key` as `sdk.StructuredData`. The keys of this field consist of elements of
-the `keyColumns` configuration field. If `keyColumns` is empty, the connector uses the primary keys of the specified
-table; otherwise, if the table has no primary keys, it uses the value of the `orderingColumn` field. The values
+the `keyColumns` of a specific table. If `keyColumns` is empty, the connector uses the primary keys of the
+table; otherwise, if the table has no primary keys, it uses the value of the `orderingColumn` field of that table. The values
 of `sdk.Record.Key` field are taken from `sdk.Payload.After` by the keys of this field.
 
 ### Table Name
 
-For each record, the connector adds a `redshift.table` property to the metadata that contains the table name.
+For each record, the connector adds a `opencdc.collection` property to the metadata that contains the table name.
 
 ## Destination
 
@@ -74,7 +106,7 @@ configuration parameters. It takes an `sdk.Record` and parses it into a valid SQ
 | name         | description                                                                                                                                           | required | example                                               | default |
 |--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|----------|-------------------------------------------------------|---------|
 | `dsn`        | [DSN](https://en.wikipedia.org/wiki/Data_source_name) to connect to Redshift.                                                                         | **true** | `postgres://username:password@endpoint:5439/database` | ""      |
-| `table`      | Name of the table the connector writes to.                                                                                                            | **true** | `table_name`                                          | ""      |
+| `table`      | Name of the table the connector writes to. It can contain a Go template that will be executed for each record to determine the table. By default, the table is the value of the opencdc.collection metadata field.                                                                                                            | **false** | `table_name`                                          | {{ index .Metadata \"opencdc.collection\" }}      |
 | `keyColumns` | Comma-separated list of column names to build the where clause in case if `sdk.Record.Key` is empty.<br /> See more: [Key handling](#key-handling-1). | false    | `id,name`                                             | ""      |
 
 ### Key handling
@@ -88,7 +120,7 @@ configuration parameters. It takes an `sdk.Record` and parses it into a valid SQ
 
 ### Table Name
 
-Records are written to the table specified by the `redshift.table` property in the metadata, if it exists.
+Records are written to the table specified by the `opencdc.collection` property in the metadata, if it exists.
 If not, the connector will fall back to the `table` configured in the connector.
 
 ## Known limitations
