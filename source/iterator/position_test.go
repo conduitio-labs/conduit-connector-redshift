@@ -18,7 +18,7 @@ import (
 	"errors"
 	"testing"
 
-	sdk "github.com/conduitio/conduit-connector-sdk"
+	"github.com/conduitio/conduit-commons/opencdc"
 	"github.com/matryer/is"
 )
 
@@ -27,7 +27,7 @@ func TestParseSDKPosition(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		in      sdk.Position
+		in      opencdc.Position
 		wantPos Position
 		wantErr error
 	}{
@@ -37,56 +37,138 @@ func TestParseSDKPosition(t *testing.T) {
 			wantPos: Position{},
 		},
 		{
-			name: "success_float64_fields",
-			in: sdk.Position(`{
-			   "lastProcessedValue":10,
-			   "latestSnapshotValue":30
+			name: "success_single_table",
+			in: opencdc.Position(`{
+				"tablePositions": {
+					"table1": {
+						"lastProcessedValue": 10,
+						"latestSnapshotValue": 30
+					}
+				}
 			}`),
 			wantPos: Position{
-				LastProcessedValue:  float64(10),
-				LatestSnapshotValue: float64(30),
+				TablePositions: map[string]TablePosition{
+					"table1": {
+						LastProcessedValue:  float64(10),
+						LatestSnapshotValue: float64(30),
+					},
+				},
 			},
 		},
 		{
-			name: "success_string_fields",
-			in: sdk.Position(`{
-			   "lastProcessedValue":"abc",
-			   "latestSnapshotValue":"def"
+			name: "success_multiple_tables",
+			in: opencdc.Position(`{
+				"tablePositions": {
+					"table1": {
+						"lastProcessedValue": "abc",
+						"latestSnapshotValue": "def"
+					},
+					"table2": {
+						"lastProcessedValue": 20,
+						"latestSnapshotValue": 40
+					}
+				}
 			}`),
 			wantPos: Position{
-				LastProcessedValue:  "abc",
-				LatestSnapshotValue: "def",
+				TablePositions: map[string]TablePosition{
+					"table1": {
+						LastProcessedValue:  "abc",
+						LatestSnapshotValue: "def",
+					},
+					"table2": {
+						LastProcessedValue:  float64(20),
+						LatestSnapshotValue: float64(40),
+					},
+				},
 			},
 		},
 		{
-			name: "success_lastProcessedValue_only",
-			in: sdk.Position(`{
-			   "lastProcessedValue":10
-			}`),
+			name: "success_empty_table_positions",
+			in:   opencdc.Position(`{"tablePositions": {}}`),
 			wantPos: Position{
-				LastProcessedValue: float64(10),
+				TablePositions: map[string]TablePosition{},
 			},
 		},
 		{
-			name: "success_latestSnapshotValue_only",
-			in: sdk.Position(`{
-			   "latestSnapshotValue":30
+			name: "success_single_table_float64_fields",
+			in: opencdc.Position(`{
+				"tablePositions": {
+					"table1": {
+						"lastProcessedValue": 10,
+						"latestSnapshotValue": 30
+					}
+				}
 			}`),
 			wantPos: Position{
-				LatestSnapshotValue: float64(30),
+				TablePositions: map[string]TablePosition{
+					"table1": {
+						LastProcessedValue:  float64(10),
+						LatestSnapshotValue: float64(30),
+					},
+				},
 			},
 		},
 		{
-			name: "failure_required_dsn_and_table",
-			in:   sdk.Position("invalid"),
-			wantErr: errors.New("unmarshal sdk.Position into Position: " +
-				"invalid character 'i' looking for beginning of value"),
+			name: "success_single_table_string_fields",
+			in: opencdc.Position(`{
+				"tablePositions": {
+					"table1": {
+						"lastProcessedValue": "abc",
+						"latestSnapshotValue": "def"
+					}
+				}
+			}`),
+			wantPos: Position{
+				TablePositions: map[string]TablePosition{
+					"table1": {
+						LastProcessedValue:  "abc",
+						LatestSnapshotValue: "def",
+					},
+				},
+			},
+		},
+		{
+			name: "success_single_table_lastProcessedValue_only",
+			in: opencdc.Position(`{
+				"tablePositions": {
+					"table1": {
+						"lastProcessedValue": 10
+					}
+				}
+			}`),
+			wantPos: Position{
+				TablePositions: map[string]TablePosition{
+					"table1": {
+						LastProcessedValue: float64(10),
+					},
+				},
+			},
+		},
+		{
+			name: "success_single_table_latestSnapshotValue_only",
+			in: opencdc.Position(`{
+				"tablePositions": {
+					"table1": {
+						"latestSnapshotValue": 30
+					}
+				}
+			}`),
+			wantPos: Position{
+				TablePositions: map[string]TablePosition{
+					"table1": {
+						LatestSnapshotValue: float64(30),
+					},
+				},
+			},
+		},
+		{
+			name:    "failure_invalid_json",
+			in:      opencdc.Position("invalid"),
+			wantErr: errors.New("unmarshal opencdc.Position into Position: invalid character 'i' looking for beginning of value"),
 		},
 	}
 
 	for _, tt := range tests {
-		tt := tt
-
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			is := is.New(t)
@@ -109,48 +191,89 @@ func TestMarshal(t *testing.T) {
 	tests := []struct {
 		name string
 		in   Position
-		want sdk.Position
+		want opencdc.Position
 	}{
 		{
-			name: "success_position_is_nil",
-			in:   Position{},
-			want: sdk.Position(`{"lastProcessedValue":null,"latestSnapshotValue":null}`),
+			name: "success_empty_table_positions",
+			in:   Position{TablePositions: map[string]TablePosition{}},
+			want: opencdc.Position(`{"tablePositions":{}}`),
 		},
 		{
-			name: "success_integer_fields",
+			name: "success_single_table",
 			in: Position{
-				LastProcessedValue:  10,
-				LatestSnapshotValue: 30,
+				TablePositions: map[string]TablePosition{
+					"table1": {
+						LastProcessedValue:  10,
+						LatestSnapshotValue: 30,
+					},
+				},
 			},
-			want: sdk.Position(`{"lastProcessedValue":10,"latestSnapshotValue":30}`),
+			want: opencdc.Position(`{"tablePositions":{"table1":{"lastProcessedValue":10,"latestSnapshotValue":30}}}`),
 		},
 		{
-			name: "success_string_fields",
+			name: "success_multiple_tables",
 			in: Position{
-				LastProcessedValue:  "abc",
-				LatestSnapshotValue: "def",
+				TablePositions: map[string]TablePosition{
+					"table1": {
+						LastProcessedValue:  "abc",
+						LatestSnapshotValue: "def",
+					},
+					"table2": {
+						LastProcessedValue:  20,
+						LatestSnapshotValue: 40,
+					},
+				},
 			},
-			want: sdk.Position(`{"lastProcessedValue":"abc","latestSnapshotValue":"def"}`),
+			want: opencdc.Position(`{"tablePositions":{"table1":{"lastProcessedValue":"abc","latestSnapshotValue":"def"},"table2":{"lastProcessedValue":20,"latestSnapshotValue":40}}}`),
 		},
 		{
-			name: "success_lastProcessedValue_only",
+			name: "success_single_table_integer_fields",
 			in: Position{
-				LastProcessedValue: float64(10),
+				TablePositions: map[string]TablePosition{
+					"table1": {
+						LastProcessedValue:  10,
+						LatestSnapshotValue: 30,
+					},
+				},
 			},
-			want: sdk.Position(`{"lastProcessedValue":10,"latestSnapshotValue":null}`),
+			want: opencdc.Position(`{"tablePositions":{"table1":{"lastProcessedValue":10,"latestSnapshotValue":30}}}`),
 		},
 		{
-			name: "success_latestSnapshotValue_only",
+			name: "success_single_table_string_fields",
 			in: Position{
-				LatestSnapshotValue: float64(30),
+				TablePositions: map[string]TablePosition{
+					"table1": {
+						LastProcessedValue:  "abc",
+						LatestSnapshotValue: "def",
+					},
+				},
 			},
-			want: sdk.Position(`{"lastProcessedValue":null,"latestSnapshotValue":30}`),
+			want: opencdc.Position(`{"tablePositions":{"table1":{"lastProcessedValue":"abc","latestSnapshotValue":"def"}}}`),
+		},
+		{
+			name: "success_single_table_lastProcessedValue_only",
+			in: Position{
+				TablePositions: map[string]TablePosition{
+					"table1": {
+						LastProcessedValue: float64(10),
+					},
+				},
+			},
+			want: opencdc.Position(`{"tablePositions":{"table1":{"lastProcessedValue":10,"latestSnapshotValue":null}}}`),
+		},
+		{
+			name: "success_single_table_latestSnapshotValue_only",
+			in: Position{
+				TablePositions: map[string]TablePosition{
+					"table1": {
+						LatestSnapshotValue: float64(30),
+					},
+				},
+			},
+			want: opencdc.Position(`{"tablePositions":{"table1":{"lastProcessedValue":null,"latestSnapshotValue":30}}}`),
 		},
 	}
-
 	for _, tt := range tests {
-		tt := tt
-
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			is := is.New(t)

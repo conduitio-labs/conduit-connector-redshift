@@ -1,4 +1,4 @@
-// Copyright © 2022 Meroxa, Inc. & Yalantis
+// Copyright © 2024 Meroxa, Inc. & Yalantis
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,27 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package common
 
-import (
-	"fmt"
+const (
+	MaxConfigStringLength = 127
+	ConfigTable           = "table"
+	ConfigKeyColumns      = "keyColumns"
+	MinConfigBatchSize    = 1
+	MaxConfigBatchSize    = 100000
 )
 
-// Destination is a destination configuration needed to connect to Redshift database.
-type Destination struct {
-	Configuration
-}
-
-// ParseDestination parses a destination configuration.
-func ParseDestination(cfg map[string]string) (Destination, error) {
-	config, err := parseCommon(cfg)
-	if err != nil {
-		return Destination{}, fmt.Errorf("parse common config: %w", err)
-	}
-
-	destinationConfig := Destination{
-		Configuration: config,
-	}
-
-	return destinationConfig, nil
+// Configuration contains common for source and destination configurable values.
+type Configuration struct {
+	// DSN is the configuration of the data source name to connect to the Amazon Redshift.
+	DSN string `json:"dsn" validate:"required"`
 }

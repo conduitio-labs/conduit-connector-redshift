@@ -19,18 +19,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/columntypes"
-	"github.com/conduitio-labs/conduit-connector-redshift/config"
-	sdk "github.com/conduitio/conduit-connector-sdk"
+	"github.com/conduitio-labs/conduit-connector-redshift/destination/config"
+	"github.com/conduitio/conduit-commons/opencdc"
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/jmoiron/sqlx"
 )
 
+type ColumnTypes map[string]string
+
 const (
-	// metadataFieldTable is a name of a record metadata field that stores a Redshift table name.
-	metadataFieldTable = "redshift.table"
 	// keySearchPath is a key of get parameter of a datatable's schema name.
 	keySearchPath = "search_path"
 	// pingTimeout is a database ping timeout.
@@ -39,19 +40,31 @@ const (
 
 // Writer implements a writer logic for Redshift destination.
 type Writer struct {
-	db          *sqlx.DB
-	table       string
-	keyColumns  []string
-	columnTypes map[string]string
+	db *sqlx.DB
+	// Schema name to write data into.
+	schema string
+	// Table name provided through config.
+	tableName string
+	// Key columns provided through config.
+	keyColumns []string
+	// Function to dynamically get table name for each record.
+	tableNameFunc config.TableFn
+	// Maps table names to their column types.
+	columnTypes map[string]ColumnTypes
 }
 
 // NewWriter creates new instance of the Writer.
-func NewWriter(ctx context.Context, driverName string, config config.Destination) (*Writer, error) {
-	var err error
+func NewWriter(ctx context.Context, driverName string, config config.Config) (*Writer, error) {
+	tableFn, err := config.TableFunction()
+	if err != nil {
+		return nil, fmt.Errorf("invalid table name or table function: %w", err)
+	}
 
 	writer := &Writer{
-		table:      config.Table,
-		keyColumns: config.KeyColumns,
+		tableName:     config.Table,
+		keyColumns:    config.KeyColumns,
+		tableNameFunc: tableFn,
+		columnTypes:   make(map[string]ColumnTypes),
 	}
 
 	writer.db, err = sqlx.Open(driverName, config.DSN)
@@ -72,17 +85,17 @@ func NewWriter(ctx context.Context, driverName string, config config.Destination
 		return nil, fmt.Errorf("parse dsn: %w", err)
 	}
 
-	writer.columnTypes, err = columntypes.GetColumnTypes(ctx, writer.db, writer.table, u.Query().Get(keySearchPath))
-	if err != nil {
-		return nil, fmt.Errorf("get column types: %w", err)
-	}
+	writer.schema = u.Query().Get(keySearchPath)
 
 	return writer, nil
 }
 
 // Insert inserts a record.
-func (w *Writer) Insert(ctx context.Context, record sdk.Record) error {
-	tableName := w.getTableName(record.Metadata)
+func (w *Writer) Insert(ctx context.Context, record opencdc.Record) error {
+	table, err := w.tableNameFunc(record)
+	if err != nil {
+		return err
+	}
 
 	payload, err := w.structurizeData(record.Payload.After)
 	if err != nil {
@@ -94,7 +107,12 @@ func (w *Writer) Insert(ctx context.Context, record sdk.Record) error {
 		return ErrNoPayload
 	}
 
-	payload, err = columntypes.ConvertStructuredData(w.columnTypes, payload)
+	columnTypes, err := w.getColumnTypes(ctx, table)
+	if err != nil {
+		return fmt.Errorf("get column types: %w", err)
+	}
+
+	payload, err = columntypes.ConvertStructuredData(columnTypes, payload)
 	if err != nil {
 		return fmt.Errorf("convert structure data: %w", err)
 	}
@@ -102,7 +120,7 @@ func (w *Writer) Insert(ctx context.Context, record sdk.Record) error {
 	columns, values := w.extractColumnsAndValues(payload)
 
 	query, args := sqlbuilder.PostgreSQL.NewInsertBuilder().
-		InsertInto(tableName).
+		InsertInto(table).
 		Cols(columns...).
 		Values(values...).
 		Build()
@@ -116,27 +134,25 @@ func (w *Writer) Insert(ctx context.Context, record sdk.Record) error {
 }
 
 // Update updates a record.
-func (w *Writer) Update(ctx context.Context, record sdk.Record) error {
-	tableName := w.getTableName(record.Metadata)
-
-	payload, err := w.structurizeData(record.Payload.After)
+func (w *Writer) Update(ctx context.Context, record opencdc.Record) error {
+	table, err := w.tableNameFunc(record)
 	if err != nil {
-		return fmt.Errorf("structurize payload: %w", err)
+		return err
 	}
 
-	// if payload is empty return empty payload error
-	if payload == nil {
-		return ErrNoPayload
+	payload, key, err := w.preparePayloadAndKey(record)
+	if err != nil {
+		return err
 	}
 
-	payload, err = columntypes.ConvertStructuredData(w.columnTypes, payload)
+	columnTypes, err := w.getColumnTypes(ctx, table)
+	if err != nil {
+		return err
+	}
+
+	payload, err = columntypes.ConvertStructuredData(columnTypes, payload)
 	if err != nil {
 		return fmt.Errorf("convert structure data: %w", err)
-	}
-
-	key, err := w.structurizeData(record.Key)
-	if err != nil {
-		return fmt.Errorf("structurize key: %w", err)
 	}
 
 	key, err = w.populateKey(key, payload)
@@ -157,7 +173,7 @@ func (w *Writer) Update(ctx context.Context, record sdk.Record) error {
 	columns, values := w.extractColumnsAndValues(payload)
 
 	ub := sqlbuilder.PostgreSQL.NewUpdateBuilder().
-		Update(tableName)
+		Update(table)
 
 	assignments := make([]string, len(columns))
 	for i := range columns {
@@ -180,8 +196,11 @@ func (w *Writer) Update(ctx context.Context, record sdk.Record) error {
 }
 
 // Delete deletes a record.
-func (w *Writer) Delete(ctx context.Context, record sdk.Record) error {
-	tableName := w.getTableName(record.Metadata)
+func (w *Writer) Delete(ctx context.Context, record opencdc.Record) error {
+	table, err := w.tableNameFunc(record)
+	if err != nil {
+		return err
+	}
 
 	key, err := w.structurizeData(record.Key)
 	if err != nil {
@@ -194,7 +213,7 @@ func (w *Writer) Delete(ctx context.Context, record sdk.Record) error {
 	}
 
 	db := sqlbuilder.PostgreSQL.NewDeleteBuilder().
-		DeleteFrom(tableName)
+		DeleteFrom(table)
 
 	for i := range keyColumns {
 		db.Where(db.Equal(keyColumns[i], key[keyColumns[i]]))
@@ -221,19 +240,26 @@ func (w *Writer) Stop() error {
 	return nil
 }
 
-// getTableName returns either the record metadata value for the table
-// or the default configured value for the table.
-func (w *Writer) getTableName(metadata map[string]string) string {
-	tableName, ok := metadata[metadataFieldTable]
-	if !ok {
-		return w.table
+func (w *Writer) preparePayloadAndKey(record opencdc.Record) (opencdc.StructuredData, opencdc.StructuredData, error) {
+	payload, err := w.structurizeData(record.Payload.After)
+	if err != nil {
+		return nil, nil, fmt.Errorf("structurize payload: %w", err)
 	}
 
-	return tableName
+	if payload == nil {
+		return nil, nil, ErrNoPayload
+	}
+
+	key, err := w.structurizeData(record.Key)
+	if err != nil {
+		return nil, nil, fmt.Errorf("structurize key: %w", err)
+	}
+
+	return payload, key, nil
 }
 
-// getKeyColumns returns either all the keys of the sdk.Record's Key field.
-func (w *Writer) getKeyColumns(key sdk.StructuredData) ([]string, error) {
+// getKeyColumns returns either all the keys of the opencdc.Record's Key field.
+func (w *Writer) getKeyColumns(key opencdc.StructuredData) ([]string, error) {
 	if len(key) == 0 {
 		return nil, ErrNoKey
 	}
@@ -246,13 +272,13 @@ func (w *Writer) getKeyColumns(key sdk.StructuredData) ([]string, error) {
 	return keyColumns, nil
 }
 
-// structurizeData converts sdk.Data to sdk.StructuredData.
-func (w *Writer) structurizeData(data sdk.Data) (sdk.StructuredData, error) {
+// structurizeData converts opencdc.Data to opencdc.StructuredData.
+func (w *Writer) structurizeData(data opencdc.Data) (opencdc.StructuredData, error) {
 	if data == nil || len(data.Bytes()) == 0 {
-		return nil, nil
+		return opencdc.StructuredData{}, nil
 	}
 
-	structuredData := make(sdk.StructuredData)
+	structuredData := make(opencdc.StructuredData)
 	if err := json.Unmarshal(data.Bytes(), &structuredData); err != nil {
 		return nil, fmt.Errorf("unmarshal data into structured data: %w", err)
 	}
@@ -262,7 +288,7 @@ func (w *Writer) structurizeData(data sdk.Data) (sdk.StructuredData, error) {
 
 // extractColumnsAndValues turns the payload into slices
 // of columns and values for inserting into Redshift.
-func (w *Writer) extractColumnsAndValues(payload sdk.StructuredData) ([]string, []any) {
+func (w *Writer) extractColumnsAndValues(payload opencdc.StructuredData) ([]string, []any) {
 	var (
 		columns []string
 		values  []any
@@ -276,14 +302,18 @@ func (w *Writer) extractColumnsAndValues(payload sdk.StructuredData) ([]string, 
 	return columns, values
 }
 
-// populateKey populates the key from the payload by keyColumns keys if it's empty.
-func (w *Writer) populateKey(key sdk.StructuredData, payload sdk.StructuredData) (sdk.StructuredData, error) {
-	if key != nil {
+// populateKey populates the key from the payload by provided keyColumns keys if it's empty and a static table is provided.
+func (w *Writer) populateKey(key opencdc.StructuredData, payload opencdc.StructuredData) (opencdc.StructuredData, error) {
+	if len(key) != 0 {
 		return key, nil
 	}
 
-	key = make(sdk.StructuredData, len(w.keyColumns))
+	// keyColumns not available for non-static tables
+	if strings.Contains(w.tableName, "{{") && strings.Contains(w.tableName, "}}") {
+		return nil, ErrNoKey
+	}
 
+	key = make(opencdc.StructuredData, len(w.keyColumns))
 	for i := range w.keyColumns {
 		val, ok := payload[w.keyColumns[i]]
 		if !ok {
@@ -294,4 +324,19 @@ func (w *Writer) populateKey(key sdk.StructuredData, payload sdk.StructuredData)
 	}
 
 	return key, nil
+}
+
+// getColumnTypes returns column types from w.tableColumnTypes, or queries the database if not exists.
+func (w *Writer) getColumnTypes(ctx context.Context, table string) (map[string]string, error) {
+	if columnTypes, ok := w.columnTypes[table]; ok {
+		return columnTypes, nil
+	}
+
+	columnTypes, err := columntypes.GetColumnTypes(ctx, w.db, table, w.schema)
+	if err != nil {
+		return nil, fmt.Errorf("get column types: %w", err)
+	}
+	w.columnTypes[table] = columnTypes
+
+	return columnTypes, nil
 }

@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	sdk "github.com/conduitio/conduit-connector-sdk"
+	"github.com/conduitio/conduit-commons/opencdc"
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/jmoiron/sqlx"
 )
@@ -145,13 +145,13 @@ func TransformRow(row map[string]any, columnTypes map[string]string) (map[string
 	return result, nil
 }
 
-// ConvertStructuredData converts a sdk.StructuredData value to another StructuredData value
+// ConvertStructuredData converts a opencdc.StructuredData value to another StructuredData value
 // but with proper database types.
 func ConvertStructuredData(
 	columnTypes map[string]string,
-	data sdk.StructuredData,
-) (sdk.StructuredData, error) {
-	result := make(sdk.StructuredData, len(data))
+	data opencdc.StructuredData,
+) (opencdc.StructuredData, error) {
+	result := make(opencdc.StructuredData, len(data))
 
 	for key, value := range data {
 		if value == nil {

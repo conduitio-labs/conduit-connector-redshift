@@ -26,8 +26,8 @@ import (
 	"time"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/columntypes"
-	"github.com/conduitio-labs/conduit-connector-redshift/config"
-	sdk "github.com/conduitio/conduit-connector-sdk"
+	"github.com/conduitio-labs/conduit-connector-redshift/destination/config"
+	"github.com/conduitio/conduit-commons/opencdc"
 	"github.com/jmoiron/sqlx"
 	"github.com/matryer/is"
 )
@@ -67,7 +67,7 @@ func TestDestination_Write_checkTypes(t *testing.T) {
 		cfg = prepareConfig(t)
 	)
 
-	db, err := sqlx.Open(driverName, cfg[config.DSN])
+	db, err := sqlx.Open(driverName, cfg[config.ConfigDsn])
 	is.NoErr(err)
 	defer db.Close()
 
@@ -100,11 +100,11 @@ func TestDestination_Write_checkTypes(t *testing.T) {
 		varbyte_type      varbyte,
 		map_type      	  varchar,
 		slice_type        varchar
-	);`, cfg[config.Table]))
+	);`, cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.Table]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
 		is.NoErr(err)
 	}()
 
@@ -141,7 +141,7 @@ func TestDestination_Write_checkTypes(t *testing.T) {
 		SliceType: []any{123, 1.23, "test", true},
 	}
 
-	var payload sdk.StructuredData
+	var payload opencdc.StructuredData
 	payloadBytes, err := json.Marshal(record)
 	is.NoErr(err)
 
@@ -157,16 +157,16 @@ func TestDestination_Write_checkTypes(t *testing.T) {
 	is.NoErr(err)
 
 	// update the record with a Key
-	n, err := dest.Write(ctx, []sdk.Record{
+	n, err := dest.Write(ctx, []opencdc.Record{
 		{
-			Operation: sdk.OperationCreate,
-			Payload:   sdk.Change{After: payload},
+			Operation: opencdc.OperationCreate,
+			Payload:   opencdc.Change{After: payload},
 		},
 	})
 	is.NoErr(err)
 	is.Equal(n, 1)
 
-	rows, err := db.QueryxContext(ctx, fmt.Sprintf("SELECT * FROM %s LIMIT 1;", cfg[config.Table]))
+	rows, err := db.QueryxContext(ctx, fmt.Sprintf("SELECT * FROM %s LIMIT 1;", cfg[config.ConfigTable]))
 	is.NoErr(err)
 	defer rows.Close()
 
@@ -234,7 +234,7 @@ func TestDestination_Write_successKeyColumns(t *testing.T) {
 		cfg = prepareConfig(t)
 	)
 
-	db, err := sqlx.Open(driverName, cfg[config.DSN])
+	db, err := sqlx.Open(driverName, cfg[config.ConfigDsn])
 	is.NoErr(err)
 	defer db.Close()
 
@@ -247,19 +247,19 @@ func TestDestination_Write_successKeyColumns(t *testing.T) {
 	err = db.PingContext(ctxTimeout)
 	is.NoErr(err)
 
-	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.Table]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
 		is.NoErr(err)
 	}()
 
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	// set a KeyColumns field to the config
-	cfg[config.KeyColumns] = "col1"
+	cfg[config.ConfigKeyColumns] = "col1"
 
 	dest := NewDestination()
 
@@ -270,13 +270,13 @@ func TestDestination_Write_successKeyColumns(t *testing.T) {
 	is.NoErr(err)
 
 	// update the record with a Key
-	n, err := dest.Write(ctx, []sdk.Record{
+	n, err := dest.Write(ctx, []opencdc.Record{
 		{
-			Operation: sdk.OperationUpdate,
-			Key: sdk.StructuredData{
+			Operation: opencdc.OperationUpdate,
+			Key: opencdc.StructuredData{
 				"col1": 1,
 			},
-			Payload: sdk.Change{After: sdk.StructuredData{
+			Payload: opencdc.Change{After: opencdc.StructuredData{
 				"col1": 1,
 				"col2": 10,
 			}},
@@ -287,7 +287,7 @@ func TestDestination_Write_successKeyColumns(t *testing.T) {
 
 	col2 := ""
 
-	err = db.QueryRow(fmt.Sprintf("SELECT col2 FROM %s WHERE col1 = 1;", cfg[config.Table])).Scan(&col2)
+	err = db.QueryRow(fmt.Sprintf("SELECT col2 FROM %s WHERE col1 = 1;", cfg[config.ConfigTable])).Scan(&col2)
 	is.NoErr(err)
 
 	col2Int, err := strconv.Atoi(col2)
@@ -296,10 +296,10 @@ func TestDestination_Write_successKeyColumns(t *testing.T) {
 	is.Equal(col2Int, 10)
 
 	// update the record with no Key
-	n, err = dest.Write(ctx, []sdk.Record{
+	n, err = dest.Write(ctx, []opencdc.Record{
 		{
-			Operation: sdk.OperationUpdate,
-			Payload: sdk.Change{After: sdk.StructuredData{
+			Operation: opencdc.OperationUpdate,
+			Payload: opencdc.Change{After: opencdc.StructuredData{
 				"col1": 1,
 				"col2": 20,
 			}},
@@ -308,7 +308,7 @@ func TestDestination_Write_successKeyColumns(t *testing.T) {
 	is.NoErr(err)
 	is.Equal(n, 1)
 
-	err = db.QueryRow(fmt.Sprintf("SELECT col2 FROM %s WHERE col1 = 1;", cfg[config.Table])).Scan(&col2)
+	err = db.QueryRow(fmt.Sprintf("SELECT col2 FROM %s WHERE col1 = 1;", cfg[config.ConfigTable])).Scan(&col2)
 	is.NoErr(err)
 
 	col2Int, err = strconv.Atoi(col2)
@@ -328,7 +328,7 @@ func TestDestination_Write_failedWrongKeyColumnsField(t *testing.T) {
 		cfg = prepareConfig(t)
 	)
 
-	db, err := sqlx.Open(driverName, cfg[config.DSN])
+	db, err := sqlx.Open(driverName, cfg[config.ConfigDsn])
 	is.NoErr(err)
 	defer db.Close()
 
@@ -341,19 +341,19 @@ func TestDestination_Write_failedWrongKeyColumnsField(t *testing.T) {
 	err = db.PingContext(ctxTimeout)
 	is.NoErr(err)
 
-	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.Table]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
 		is.NoErr(err)
 	}()
 
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	// set a wrong KeyColumns field to the config
-	cfg[config.KeyColumns] = "wrong_column"
+	cfg[config.ConfigKeyColumns] = "wrong_column"
 
 	dest := NewDestination()
 
@@ -364,10 +364,10 @@ func TestDestination_Write_failedWrongKeyColumnsField(t *testing.T) {
 	is.NoErr(err)
 
 	// update the record with no Key
-	_, err = dest.Write(ctx, []sdk.Record{
+	_, err = dest.Write(ctx, []opencdc.Record{
 		{
-			Operation: sdk.OperationUpdate,
-			Payload: sdk.Change{After: sdk.StructuredData{
+			Operation: opencdc.OperationUpdate,
+			Payload: opencdc.Change{After: opencdc.StructuredData{
 				"col1": 1,
 				"col2": 10,
 			}},
@@ -388,7 +388,7 @@ func TestDestination_Write_failedWrongPayloadKey(t *testing.T) {
 		cfg = prepareConfig(t)
 	)
 
-	db, err := sqlx.Open(driverName, cfg[config.DSN])
+	db, err := sqlx.Open(driverName, cfg[config.ConfigDsn])
 	is.NoErr(err)
 	defer db.Close()
 
@@ -401,15 +401,15 @@ func TestDestination_Write_failedWrongPayloadKey(t *testing.T) {
 	err = db.PingContext(ctxTimeout)
 	is.NoErr(err)
 
-	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s (col1 INTEGER, col2 INTEGER);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	defer func() {
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.Table]))
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s;", cfg[config.ConfigTable]))
 		is.NoErr(err)
 	}()
 
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.Table]))
+	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (1, 2);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
 	dest := NewDestination()
@@ -420,10 +420,10 @@ func TestDestination_Write_failedWrongPayloadKey(t *testing.T) {
 	err = dest.Open(ctx)
 	is.NoErr(err)
 
-	_, err = dest.Write(ctx, []sdk.Record{
+	_, err = dest.Write(ctx, []opencdc.Record{
 		{
-			Operation: sdk.OperationSnapshot,
-			Payload: sdk.Change{After: sdk.StructuredData{
+			Operation: opencdc.OperationSnapshot,
+			Payload: opencdc.Change{After: opencdc.StructuredData{
 				"col1":      1,
 				"wrong_key": 10,
 			}},
@@ -451,7 +451,7 @@ func prepareConfig(t *testing.T) map[string]string {
 	}
 
 	return map[string]string{
-		config.DSN:   dsn,
-		config.Table: fmt.Sprintf("conduit_dst_test_%d", time.Now().UnixNano()),
+		config.ConfigDsn:   dsn,
+		config.ConfigTable: fmt.Sprintf("conduit_dst_test_%d", time.Now().UnixNano()),
 	}
 }
