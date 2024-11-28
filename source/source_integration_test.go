@@ -462,8 +462,24 @@ func TestSource_Read_checkTypes(t *testing.T) {
 	err = src.Open(ctx, nil)
 	is.NoErr(err)
 
-	record, err := src.Read(ctx)
-	is.NoErr(err)
+	// wait for a record to be available
+	var record opencdc.Record
+	for {
+		record, err = src.Read(ctx)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, sdk.ErrBackoffRetry) {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal("Timeout waiting for record")
+		case <-time.After(100 * time.Millisecond):
+			// short wait before retrying
+			continue
+		}
+	}
 
 	decodedKey, err := getDecodedKey(ctx, record)
 	is.NoErr(err)
