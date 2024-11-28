@@ -17,20 +17,19 @@ package source
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
 
+	"github.com/conduitio/conduit-commons/csync"
 	"github.com/conduitio/conduit-commons/opencdc"
 )
 
 // Position represents Redshift's position.
 type Position struct {
-	mu             sync.Mutex
-	TablePositions map[string]TablePosition `json:"tablePositions"`
+	TablePositions *csync.Map[string, TablePosition] `json:"tablePositions"` // Use csync.Map for thread safety
 }
 
 // NewPosition initializes a new position when sdk position is nil.
 func NewPosition() *Position {
-	return &Position{TablePositions: make(map[string]TablePosition)}
+	return &Position{TablePositions: csync.NewMap[string, TablePosition]()}
 }
 
 type TablePosition struct {
@@ -42,13 +41,12 @@ type TablePosition struct {
 
 // ParseSDKPosition parses opencdc.Position and returns Position.
 func ParseSDKPosition(position opencdc.Position) (*Position, error) {
-	var pos Position
-
 	if position == nil {
 		return NewPosition(), nil
 	}
 
-	if err := json.Unmarshal(position, &pos); err != nil {
+	var pos Position
+	if err := pos.unmarshal(position); err != nil {
 		return nil, fmt.Errorf("unmarshal opencdc.Position into Position: %w", err)
 	}
 
@@ -57,7 +55,12 @@ func ParseSDKPosition(position opencdc.Position) (*Position, error) {
 
 // marshal marshals Position and returns opencdc.Position or an error.
 func (p *Position) marshal() (opencdc.Position, error) {
-	positionBytes, err := json.Marshal(p)
+	// convert thread-safe map to a Go map for JSON serialization
+	goMap := p.TablePositions.ToGoMap()
+
+	positionBytes, err := json.Marshal(map[string]any{
+		"tablePositions": goMap,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal position: %w", err)
 	}
@@ -65,17 +68,30 @@ func (p *Position) marshal() (opencdc.Position, error) {
 	return positionBytes, nil
 }
 
-// update updates a table position in the source position.
-func (p *Position) update(table string, newPosition TablePosition) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.TablePositions[table] = newPosition
+func (p *Position) unmarshal(data []byte) error {
+	// temporary struct for unmarshaling JSON
+	var temp struct {
+		TablePositions map[string]TablePosition `json:"tablePositions"`
+	}
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return fmt.Errorf("unmarshal position JSON: %w", err)
+	}
+
+	// initialize csync.Map and populate it
+	p.TablePositions = csync.NewMap[string, TablePosition]()
+	for table, tablePos := range temp.TablePositions {
+		p.TablePositions.Set(table, tablePos)
+	}
+
+	return nil
+}
+
+// set sets a table position in the source position.
+func (p *Position) set(table string, newPosition TablePosition) {
+	p.TablePositions.Set(table, newPosition)
 }
 
 // get fetches a table position from the source position.
 func (p *Position) get(table string) (TablePosition, bool) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	pos, exists := p.TablePositions[table]
-	return pos, exists
+	return p.TablePositions.Get(table)
 }

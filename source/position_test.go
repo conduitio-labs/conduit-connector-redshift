@@ -27,7 +27,7 @@ func TestNewPosition(t *testing.T) {
 	is := is.New(t)
 	pos := NewPosition()
 	is.True(pos != nil)
-	is.Equal(len(pos.TablePositions), 0)
+	is.Equal(pos.TablePositions.Len(), 0)
 }
 
 func TestParseSDKPosition(t *testing.T) {
@@ -42,7 +42,7 @@ func TestParseSDKPosition(t *testing.T) {
 		{
 			name:    "success_position_is_nil",
 			in:      nil,
-			wantPos: &Position{TablePositions: make(map[string]TablePosition)},
+			wantPos: NewPosition(),
 		},
 		{
 			name: "success_single_table",
@@ -54,14 +54,14 @@ func TestParseSDKPosition(t *testing.T) {
 					}
 				}
 			}`),
-			wantPos: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {
-						LastProcessedValue:  float64(10),
-						LatestSnapshotValue: float64(30),
-					},
-				},
-			},
+			wantPos: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue:  float64(10),
+					LatestSnapshotValue: float64(30),
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 		},
 		{
 			name: "success_multiple_tables",
@@ -77,25 +77,23 @@ func TestParseSDKPosition(t *testing.T) {
 					}
 				}
 			}`),
-			wantPos: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {
-						LastProcessedValue:  "abc",
-						LatestSnapshotValue: "def",
-					},
-					"table2": {
-						LastProcessedValue:  float64(20),
-						LatestSnapshotValue: float64(40),
-					},
-				},
-			},
+			wantPos: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue:  "abc",
+					LatestSnapshotValue: "def",
+				})
+				pos.set("table2", TablePosition{
+					LastProcessedValue:  float64(20),
+					LatestSnapshotValue: float64(40),
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 		},
 		{
-			name: "success_empty_table_positions",
-			in:   opencdc.Position(`{"tablePositions": {}}`),
-			wantPos: &Position{
-				TablePositions: map[string]TablePosition{},
-			},
+			name:    "success_empty_table_positions",
+			in:      opencdc.Position(`{"tablePositions": {}}`),
+			wantPos: NewPosition(),
 		},
 		{
 			name: "success_single_table_float64_fields",
@@ -107,14 +105,14 @@ func TestParseSDKPosition(t *testing.T) {
 					}
 				}
 			}`),
-			wantPos: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {
-						LastProcessedValue:  float64(10),
-						LatestSnapshotValue: float64(30),
-					},
-				},
-			},
+			wantPos: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue:  float64(10),
+					LatestSnapshotValue: float64(30),
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 		},
 		{
 			name: "success_single_table_string_fields",
@@ -126,14 +124,14 @@ func TestParseSDKPosition(t *testing.T) {
 					}
 				}
 			}`),
-			wantPos: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {
-						LastProcessedValue:  "abc",
-						LatestSnapshotValue: "def",
-					},
-				},
-			},
+			wantPos: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue:  "abc",
+					LatestSnapshotValue: "def",
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 		},
 		{
 			name: "success_single_table_lastProcessedValue_only",
@@ -144,13 +142,13 @@ func TestParseSDKPosition(t *testing.T) {
 					}
 				}
 			}`),
-			wantPos: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {
-						LastProcessedValue: float64(10),
-					},
-				},
-			},
+			wantPos: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue: float64(10),
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 		},
 		{
 			name: "success_single_table_latestSnapshotValue_only",
@@ -161,18 +159,18 @@ func TestParseSDKPosition(t *testing.T) {
 					}
 				}
 			}`),
-			wantPos: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {
-						LatestSnapshotValue: float64(30),
-					},
-				},
-			},
+			wantPos: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LatestSnapshotValue: float64(30),
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 		},
 		{
 			name:    "failure_invalid_json",
 			in:      opencdc.Position("invalid"),
-			wantErr: errors.New("unmarshal opencdc.Position into Position: invalid character 'i' looking for beginning of value"),
+			wantErr: errors.New("unmarshal opencdc.Position into Position: unmarshal position JSON: invalid character 'i' looking for beginning of value"),
 		},
 	}
 
@@ -203,81 +201,81 @@ func TestMarshal(t *testing.T) {
 	}{
 		{
 			name: "success_empty_table_positions",
-			in:   &Position{TablePositions: map[string]TablePosition{}},
+			in:   NewPosition(),
 			want: opencdc.Position(`{"tablePositions":{}}`),
 		},
 		{
 			name: "success_single_table",
-			in: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {
-						LastProcessedValue:  10,
-						LatestSnapshotValue: 30,
-					},
-				},
-			},
+			in: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue:  10,
+					LatestSnapshotValue: 30,
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 			want: opencdc.Position(`{"tablePositions":{"table1":{"lastProcessedValue":10,"latestSnapshotValue":30}}}`),
 		},
 		{
 			name: "success_multiple_tables",
-			in: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {
-						LastProcessedValue:  "abc",
-						LatestSnapshotValue: "def",
-					},
-					"table2": {
-						LastProcessedValue:  20,
-						LatestSnapshotValue: 40,
-					},
-				},
-			},
+			in: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue:  "abc",
+					LatestSnapshotValue: "def",
+				})
+				pos.set("table2", TablePosition{
+					LastProcessedValue:  20,
+					LatestSnapshotValue: 40,
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 			want: opencdc.Position(`{"tablePositions":{"table1":{"lastProcessedValue":"abc","latestSnapshotValue":"def"},"table2":{"lastProcessedValue":20,"latestSnapshotValue":40}}}`),
 		},
 		{
 			name: "success_single_table_integer_fields",
-			in: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {
-						LastProcessedValue:  10,
-						LatestSnapshotValue: 30,
-					},
-				},
-			},
+			in: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue:  10,
+					LatestSnapshotValue: 30,
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 			want: opencdc.Position(`{"tablePositions":{"table1":{"lastProcessedValue":10,"latestSnapshotValue":30}}}`),
 		},
 		{
 			name: "success_single_table_string_fields",
-			in: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {
-						LastProcessedValue:  "abc",
-						LatestSnapshotValue: "def",
-					},
-				},
-			},
+			in: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue:  "abc",
+					LatestSnapshotValue: "def",
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 			want: opencdc.Position(`{"tablePositions":{"table1":{"lastProcessedValue":"abc","latestSnapshotValue":"def"}}}`),
 		},
 		{
 			name: "success_single_table_lastProcessedValue_only",
-			in: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {
-						LastProcessedValue: float64(10),
-					},
-				},
-			},
+			in: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue: float64(10),
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 			want: opencdc.Position(`{"tablePositions":{"table1":{"lastProcessedValue":10,"latestSnapshotValue":null}}}`),
 		},
 		{
 			name: "success_single_table_latestSnapshotValue_only",
-			in: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {
-						LatestSnapshotValue: float64(30),
-					},
-				},
-			},
+			in: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LatestSnapshotValue: float64(30),
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 			want: opencdc.Position(`{"tablePositions":{"table1":{"lastProcessedValue":null,"latestSnapshotValue":30}}}`),
 		},
 	}
@@ -305,51 +303,75 @@ func TestPosition_Update(t *testing.T) {
 	}{
 		{
 			name: "update_existing_table",
-			initial: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {LastProcessedValue: 1, LatestSnapshotValue: 2},
-					"table2": {LastProcessedValue: 3, LatestSnapshotValue: 4},
-				},
-			},
+			initial: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue:  1,
+					LatestSnapshotValue: 2,
+				})
+				pos.set("table2", TablePosition{
+					LastProcessedValue:  3,
+					LatestSnapshotValue: 4,
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 			table:     "table1",
 			updatePos: TablePosition{LastProcessedValue: 10, LatestSnapshotValue: 20},
-			want: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {LastProcessedValue: 10, LatestSnapshotValue: 20},
-					"table2": {LastProcessedValue: 3, LatestSnapshotValue: 4},
-				},
-			},
+			want: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue:  10,
+					LatestSnapshotValue: 20,
+				})
+				pos.set("table2", TablePosition{
+					LastProcessedValue:  3,
+					LatestSnapshotValue: 4,
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 		},
 		{
 			name: "update_new_table",
-			initial: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {LastProcessedValue: 1, LatestSnapshotValue: 2},
-				},
-			},
+			initial: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue:  1,
+					LatestSnapshotValue: 2,
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 			table:     "table2",
 			updatePos: TablePosition{LastProcessedValue: 3, LatestSnapshotValue: 4},
-			want: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {LastProcessedValue: 1, LatestSnapshotValue: 2},
-					"table2": {LastProcessedValue: 3, LatestSnapshotValue: 4},
-				},
-			},
+			want: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue:  1,
+					LatestSnapshotValue: 2,
+				})
+				pos.set("table2", TablePosition{
+					LastProcessedValue:  3,
+					LatestSnapshotValue: 4,
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 		},
 		{
 			name: "update_with_nil_values",
-			initial: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {LastProcessedValue: 1, LatestSnapshotValue: 2},
-				},
-			},
+			initial: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue:  1,
+					LatestSnapshotValue: 2,
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 			table:     "table1",
 			updatePos: TablePosition{LastProcessedValue: nil, LatestSnapshotValue: nil},
-			want: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {LastProcessedValue: nil, LatestSnapshotValue: nil},
-				},
-			},
+			want: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 		},
 	}
 
@@ -358,7 +380,7 @@ func TestPosition_Update(t *testing.T) {
 			t.Parallel()
 			is := is.New(t)
 
-			tt.initial.update(tt.table, tt.updatePos)
+			tt.initial.set(tt.table, tt.updatePos)
 			is.Equal(tt.initial, tt.want)
 		})
 	}
@@ -376,42 +398,46 @@ func TestPosition_Get(t *testing.T) {
 	}{
 		{
 			name: "get_existing_table",
-			initial: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {LastProcessedValue: 1, LatestSnapshotValue: 2},
-				},
-			},
+			initial: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue:  1,
+					LatestSnapshotValue: 2,
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 			table:      "table1",
 			wantPos:    TablePosition{LastProcessedValue: 1, LatestSnapshotValue: 2},
 			wantExists: true,
 		},
 		{
 			name: "get_non_existing_table",
-			initial: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {LastProcessedValue: 1, LatestSnapshotValue: 2},
-				},
-			},
+			initial: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{
+					LastProcessedValue:  1,
+					LatestSnapshotValue: 2,
+				})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 			table:      "table2",
 			wantPos:    TablePosition{},
 			wantExists: false,
 		},
 		{
-			name: "get_from_empty_positions",
-			initial: &Position{
-				TablePositions: map[string]TablePosition{},
-			},
+			name:       "get_from_empty_positions",
+			initial:    NewPosition(),
 			table:      "table1",
 			wantPos:    TablePosition{},
 			wantExists: false,
 		},
 		{
 			name: "get_table_with_nil_values",
-			initial: &Position{
-				TablePositions: map[string]TablePosition{
-					"table1": {LastProcessedValue: nil, LatestSnapshotValue: nil},
-				},
-			},
+			initial: func() *Position {
+				pos := NewPosition()
+				pos.set("table1", TablePosition{})
+				return pos //nolint:nlreturn // compact code style
+			}(),
 			table:      "table1",
 			wantPos:    TablePosition{LastProcessedValue: nil, LatestSnapshotValue: nil},
 			wantExists: true,

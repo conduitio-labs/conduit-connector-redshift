@@ -68,6 +68,10 @@ func (d *driver) WriteTimeout() time.Duration {
 	return time.Minute
 }
 
+func (d *driver) ReadTimeout() time.Duration {
+	return time.Minute
+}
+
 func TestAcceptance(t *testing.T) {
 	dsn := os.Getenv(envNameDSN)
 	if dsn == "" {

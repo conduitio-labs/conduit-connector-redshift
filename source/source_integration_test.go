@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/conduitio-labs/conduit-connector-redshift/source/config"
 	"github.com/conduitio/conduit-commons/opencdc"
+	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/conduitio/conduit-connector-sdk/schema"
 	"github.com/jmoiron/sqlx"
 	"github.com/matryer/is"
@@ -104,7 +106,7 @@ func TestSource_Read_tableHasNoData(t *testing.T) {
 	is.NoErr(err)
 
 	_, err = src.Read(ctx)
-	is.Equal(err, context.DeadlineExceeded)
+	is.Equal(err, sdk.ErrBackoffRetry)
 
 	cancel()
 
@@ -152,8 +154,24 @@ func TestSource_Read_keyColumnsFromConfig(t *testing.T) {
 	err = src.Open(ctx, nil)
 	is.NoErr(err)
 
-	record, err := src.Read(ctx)
-	is.NoErr(err)
+	// wait for a record to be available
+	var record opencdc.Record
+	for {
+		record, err = src.Read(ctx)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, sdk.ErrBackoffRetry) {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal("Timeout waiting for record")
+		case <-time.After(100 * time.Millisecond):
+			// short wait before retrying
+			continue
+		}
+	}
 
 	decodedKey, err := getDecodedKey(ctx, record)
 	is.NoErr(err)
@@ -211,8 +229,24 @@ func TestSource_Read_keyColumnsFromTableMetadata(t *testing.T) {
 	err = src.Open(ctx, nil)
 	is.NoErr(err)
 
-	record, err := src.Read(ctx)
-	is.NoErr(err)
+	// wait for a record to be available
+	var record opencdc.Record
+	for {
+		record, err = src.Read(ctx)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, sdk.ErrBackoffRetry) {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal("Timeout waiting for record")
+		case <-time.After(100 * time.Millisecond):
+			// short wait before retrying
+			continue
+		}
+	}
 
 	decodedKey, err := getDecodedKey(ctx, record)
 	is.NoErr(err)
@@ -269,8 +303,24 @@ func TestSource_Read_keyColumnsFromOrderingColumn(t *testing.T) {
 	err = src.Open(ctx, nil)
 	is.NoErr(err)
 
-	record, err := src.Read(ctx)
-	is.NoErr(err)
+	// wait for a record to be available
+	var record opencdc.Record
+	for {
+		record, err = src.Read(ctx)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, sdk.ErrBackoffRetry) {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal("Timeout waiting for record")
+		case <-time.After(100 * time.Millisecond):
+			// short wait before retrying
+			continue
+		}
+	}
 
 	decodedKey, err := getDecodedKey(ctx, record)
 	is.NoErr(err)
@@ -480,7 +530,7 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 
 	src := NewSource()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	err = src.Configure(ctx, cfg)
@@ -490,31 +540,30 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 	is.NoErr(err)
 
 	_, err = src.Read(ctx)
-	is.Equal(err, context.DeadlineExceeded)
-
-	cancel()
-
-	err = src.Teardown(context.Background())
-	is.NoErr(err)
-
-	// open a new source this time to read data in cdc mode
-	src = NewSource()
-
-	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	err = src.Configure(ctx, cfg)
-	is.NoErr(err)
-
-	err = src.Open(ctx, nil)
-	is.NoErr(err)
+	is.Equal(err, sdk.ErrBackoffRetry)
 
 	// insert an additional row
 	_, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES (3, 4);", cfg[config.ConfigTable]))
 	is.NoErr(err)
 
-	record, err := src.Read(ctx)
-	is.NoErr(err)
+	// wait for a record to be available
+	var record opencdc.Record
+	for {
+		record, err = src.Read(ctx)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, sdk.ErrBackoffRetry) {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal("Timeout waiting for record")
+		case <-time.After(100 * time.Millisecond):
+			// short wait before retrying
+			continue
+		}
+	}
 
 	decodedKey, err := getDecodedKey(ctx, record)
 	is.NoErr(err)
@@ -525,7 +574,7 @@ func TestSource_Read_snapshotIsFalse(t *testing.T) {
 	is.Equal(record.Operation, opencdc.OperationCreate)
 
 	_, err = src.Read(ctx)
-	is.Equal(err, context.DeadlineExceeded)
+	is.Equal(err, sdk.ErrBackoffRetry)
 
 	cancel()
 

@@ -16,6 +16,7 @@ package source
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -132,7 +133,7 @@ func (s *Source) Read(ctx context.Context) (opencdc.Record, error) {
 	sdk.Logger(ctx).Debug().Msg("Reading a record from Amazon Redshift Source...")
 
 	if s == nil || s.ch == nil {
-		return opencdc.Record{}, fmt.Errorf("error source not opened for reading")
+		return opencdc.Record{}, errors.New("source not opened for reading")
 	}
 
 	select {
@@ -140,9 +141,11 @@ func (s *Source) Read(ctx context.Context) (opencdc.Record, error) {
 		return opencdc.Record{}, ctx.Err()
 	case record, ok := <-s.ch:
 		if !ok {
-			return opencdc.Record{}, fmt.Errorf("error reading data")
+			return opencdc.Record{}, fmt.Errorf("error reading data, records channel closed unexpectedly")
 		}
-		return record, nil
+		return record, nil //nolint:nlreturn // compact code style
+	default:
+		return opencdc.Record{}, sdk.ErrBackoffRetry
 	}
 }
 

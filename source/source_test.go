@@ -146,12 +146,12 @@ func TestSource_Read_SourceNotInitialized(t *testing.T) {
 	var s *Source
 	_, err := s.Read(ctx)
 	is.True(err != nil)
-	is.Equal(err.Error(), "error source not opened for reading")
+	is.Equal(err.Error(), "source not opened for reading")
 
 	s = &Source{}
 	_, err = s.Read(ctx)
 	is.True(err != nil)
-	is.Equal(err.Error(), "error source not opened for reading")
+	is.Equal(err.Error(), "source not opened for reading")
 }
 
 func TestSource_Read_ClosedChannel(t *testing.T) {
@@ -167,7 +167,7 @@ func TestSource_Read_ClosedChannel(t *testing.T) {
 
 	_, err := s.Read(ctx)
 	is.True(err != nil)
-	is.Equal(err.Error(), "error reading data")
+	is.Equal(err.Error(), "error reading data, records channel closed unexpectedly")
 }
 
 func TestSource_Teardown_Success(t *testing.T) {

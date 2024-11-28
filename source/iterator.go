@@ -143,7 +143,7 @@ func (iter *Iterator) start(ctx context.Context) {
 		if err != nil || !hasNext {
 			if err != nil {
 				sdk.Logger(ctx).Err(err).Msg("iterator shutting down...")
-				return
+				return //nolint:nlreturn // compact code style
 			}
 
 			select {
@@ -153,7 +153,7 @@ func (iter *Iterator) start(ctx context.Context) {
 				if err != nil {
 					sdk.Logger(ctx).Err(err).Msg("iterator shutting down...")
 				}
-				return
+				return //nolint:nlreturn // compact code style
 
 			case <-time.After(iter.pollingPeriod):
 				continue
@@ -163,7 +163,7 @@ func (iter *Iterator) start(ctx context.Context) {
 		record, err := iter.next(ctx)
 		if err != nil {
 			sdk.Logger(ctx).Err(err).Msg("iterator shutting down...")
-			return
+			return //nolint:nlreturn // compact code style
 		}
 
 		select {
@@ -177,7 +177,7 @@ func (iter *Iterator) start(ctx context.Context) {
 			if err != nil {
 				sdk.Logger(ctx).Err(err).Msg("iterator shutting down...")
 			}
-			return
+			return //nolint:nlreturn // compact code style
 		}
 	}
 }
@@ -203,7 +203,7 @@ func (iter *Iterator) hasNext(ctx context.Context) (bool, error) {
 		iter.position.LastProcessedValue = iter.position.LatestSnapshotValue
 		iter.position.LatestSnapshotValue = nil
 
-		iter.sourcePosition.update(iter.table, iter.position)
+		iter.sourcePosition.set(iter.table, iter.position)
 
 		// and load new rows
 		if err := iter.loadRows(ctx); err != nil {
@@ -259,7 +259,7 @@ func (iter *Iterator) next(_ context.Context) (opencdc.Record, error) {
 		position.LastProcessedValue = transformedRow[iter.orderingColumn]
 	}
 
-	iter.sourcePosition.update(iter.table, position)
+	iter.sourcePosition.set(iter.table, position)
 
 	sdkPosition, err := iter.sourcePosition.marshal()
 	if err != nil {

@@ -77,37 +77,13 @@ pipelines:
         settings:
           dsn: "sample_dsn"
           # table "users"
+          # column "foo" will be used to order the rows, so it must contain unique, consistent values suitable for sorting
           tables.users.orderingColumn: "foo"
+          # columns "foo" and "bar" will be used to build the record key.
           tables.users.keyColumns: "foo,bar"
           # table "orders"
           tables.orders.orderingColumn: "id"
 ```
-
-
-### Example
-
-#### Collections
-
-The following configuration reads records from `users` and `orders` table
-
-```yaml
-version: 2.2
-pipelines:
-  - id: example
-    status: running
-    connectors:
-      - id: example
-        type: source
-        plugin: redshift
-        settings:
-          dsn: "sample_dsn"
-          # table "users"
-          tables.users.orderingColumn: "foo"
-          tables.users.keyColumns: "foo,bar"
-          # table "orders"
-          tables.orders.orderingColumn: "id"
-```
-
 
 ### Key handling
 
