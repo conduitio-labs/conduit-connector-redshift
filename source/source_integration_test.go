@@ -63,7 +63,7 @@ func TestSource_Read_tableDoesNotExist(t *testing.T) {
 	is.NoErr(err)
 
 	err = src.Open(ctx, nil)
-	is.True(strings.Contains(err.Error(), "new iterator: get latest snapshot value: execute select latest snapshot value query"))
+	is.True(strings.Contains(err.Error(), fmt.Sprintf("creating iterator for table %s: get latest snapshot value: execute select latest snapshot value query", cfg[config.ConfigTable])))
 
 	cancel()
 }

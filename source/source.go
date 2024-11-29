@@ -121,7 +121,7 @@ func (s *Source) Open(ctx context.Context, position opencdc.Position) error {
 			ch:             s.ch,
 		})
 		if err != nil {
-			return fmt.Errorf("creating iterator for table %q: %w", table, err)
+			return fmt.Errorf("creating iterator for table %s: %w", table, err)
 		}
 	}
 
