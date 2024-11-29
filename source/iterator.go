@@ -140,18 +140,18 @@ func (iter *Iterator) start(ctx context.Context) {
 
 	for {
 		hasNext, err := iter.hasNext(ctx)
-		if err != nil || !hasNext {
-			if err != nil {
-				sdk.Logger(ctx).Err(err).Msg("iterator shutting down...")
-				return //nolint:nlreturn // compact code style
-			}
+		if err != nil {
+			sdk.Logger(ctx).Err(err).Msg("iterator shutting down...")
+			return //nolint:nlreturn // compact code style
+		}
 
+		if !hasNext {
 			select {
 			case <-ctx.Done():
-				sdk.Logger(ctx).Debug().Msg("iterator shutting down...")
+				sdk.Logger(ctx).Debug().Msg("context cancelled, iterator shutting down...")
 				err = iter.stop()
 				if err != nil {
-					sdk.Logger(ctx).Err(err).Msg("iterator shutting down...")
+					sdk.Logger(ctx).Err(err).Msg("failed to properly stop iterator after context cancellation")
 				}
 				return //nolint:nlreturn // compact code style
 
@@ -172,10 +172,10 @@ func (iter *Iterator) start(ctx context.Context) {
 			iter.position = position
 
 		case <-ctx.Done():
-			sdk.Logger(ctx).Debug().Msg("iterator shutting down...")
+			sdk.Logger(ctx).Debug().Msg("context cancelled, iterator shutting down...")
 			err = iter.stop()
 			if err != nil {
-				sdk.Logger(ctx).Err(err).Msg("iterator shutting down...")
+				sdk.Logger(ctx).Err(err).Msg("failed to properly stop iterator after context cancellation")
 			}
 			return //nolint:nlreturn // compact code style
 		}
