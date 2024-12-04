@@ -16,15 +16,14 @@ package source
 
 import (
 	"context"
-	"errors"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/common"
 	config "github.com/conduitio-labs/conduit-connector-redshift/source/config"
-	"github.com/conduitio-labs/conduit-connector-redshift/source/mock"
 	"github.com/conduitio/conduit-commons/opencdc"
 	"github.com/matryer/is"
-	"go.uber.org/mock/gomock"
 )
 
 const (
@@ -43,6 +42,7 @@ func TestSource_Configure_requiredFieldsSuccess(t *testing.T) {
 		config.ConfigDsn:            testDSN,
 		config.ConfigTable:          testTable,
 		config.ConfigOrderingColumn: "created_at",
+		config.ConfigPollingPeriod:  "5s",
 	})
 	is.NoErr(err)
 	is.Equal(s.config, config.Config{
@@ -58,6 +58,7 @@ func TestSource_Configure_requiredFieldsSuccess(t *testing.T) {
 		OrderingColumn: "created_at",
 		Snapshot:       true,
 		BatchSize:      1000,
+		PollingPeriod:  5 * time.Second,
 	})
 }
 
@@ -75,6 +76,7 @@ func TestSource_Configure_allFieldsSuccess(t *testing.T) {
 		config.ConfigSnapshot:       "false",
 		config.ConfigKeyColumns:     "id,name",
 		config.ConfigBatchSize:      "10000",
+		config.ConfigPollingPeriod:  "5s",
 	})
 	is.NoErr(err)
 	is.Equal(s.config, config.Config{
@@ -90,6 +92,7 @@ func TestSource_Configure_allFieldsSuccess(t *testing.T) {
 		OrderingColumn: "created_at",
 		Snapshot:       false,
 		BatchSize:      10000,
+		PollingPeriod:  5 * time.Second,
 	})
 }
 
@@ -108,111 +111,99 @@ func TestSource_Configure_failure(t *testing.T) {
 	is.Equal(err.Error(), "error validating configuration: error validating \"tables\": required parameter is not provided")
 }
 
-func TestSource_Read_success(t *testing.T) {
+func TestSource_Read_Success(t *testing.T) {
 	t.Parallel()
 
 	is := is.New(t)
-
-	ctrl := gomock.NewController(t)
 	ctx := context.Background()
 
-	st := make(opencdc.StructuredData)
-	st["key"] = "value"
-
-	record := opencdc.Record{
+	st := opencdc.StructuredData{
+		"key": "value",
+	}
+	expectedRecord := opencdc.Record{
 		Position: opencdc.Position(`{"last_processed_element_value": 1}`),
 		Metadata: nil,
 		Key:      st,
 		Payload:  opencdc.Change{After: st},
 	}
 
-	it := mock.NewMockIterator(ctrl)
-	it.EXPECT().HasNext(ctx).Return(true, nil)
-	it.EXPECT().Next(ctx).Return(record, nil)
-
-	s := Source{
-		iterator: it,
+	s := &Source{
+		ch: make(chan opencdc.Record, 1),
 	}
+	s.ch <- expectedRecord
 
-	r, err := s.Read(ctx)
+	record, err := s.Read(ctx)
 	is.NoErr(err)
-	is.Equal(r, record)
+	is.Equal(record, expectedRecord)
 }
 
-func TestSource_Read_hasNextFailure(t *testing.T) {
+func TestSource_Read_SourceNotInitialized(t *testing.T) {
 	t.Parallel()
 
 	is := is.New(t)
-
-	ctrl := gomock.NewController(t)
 	ctx := context.Background()
 
-	it := mock.NewMockIterator(ctrl)
-	it.EXPECT().HasNext(ctx).Return(true, errors.New("get data: fail"))
+	var s *Source
+	_, err := s.Read(ctx)
+	is.True(err != nil)
+	is.Equal(err.Error(), "source not opened for reading")
 
-	s := Source{
-		iterator: it,
+	s = &Source{}
+	_, err = s.Read(ctx)
+	is.True(err != nil)
+	is.Equal(err.Error(), "source not opened for reading")
+}
+
+func TestSource_Read_ClosedChannel(t *testing.T) {
+	t.Parallel()
+
+	is := is.New(t)
+	ctx := context.Background()
+
+	s := &Source{
+		ch: make(chan opencdc.Record),
 	}
+	close(s.ch)
 
 	_, err := s.Read(ctx)
 	is.True(err != nil)
-	is.Equal(err.Error(), "has next: get data: fail")
+	is.Equal(err.Error(), "error reading data, records channel closed unexpectedly")
 }
 
-func TestSource_Read_nextFailure(t *testing.T) {
+func TestSource_Teardown_Success(t *testing.T) {
 	t.Parallel()
 
 	is := is.New(t)
-
-	ctrl := gomock.NewController(t)
 	ctx := context.Background()
 
-	it := mock.NewMockIterator(ctrl)
-	it.EXPECT().HasNext(ctx).Return(true, nil)
-	it.EXPECT().Next(ctx).Return(opencdc.Record{}, errors.New("key is not exist"))
-
-	s := Source{
-		iterator: it,
+	s := &Source{
+		ch: make(chan opencdc.Record),
+		wg: &sync.WaitGroup{},
 	}
 
-	_, err := s.Read(ctx)
-	is.True(err != nil)
-	is.Equal(err.Error(), "next: key is not exist")
-}
-
-func TestSource_Teardown(t *testing.T) {
-	t.Parallel()
-
-	is := is.New(t)
-
-	ctrl := gomock.NewController(t)
-
-	it := mock.NewMockIterator(ctrl)
-	it.EXPECT().Stop().Return(nil)
-
-	s := Source{
-		iterator: it,
-	}
-
-	err := s.Teardown(context.Background())
+	err := s.Teardown(ctx)
 	is.NoErr(err)
+	is.True(s.ch == nil)
 }
 
-func TestSource_Teardown_failure(t *testing.T) {
+func TestSource_Teardown_WithPendingGoroutines(t *testing.T) {
 	t.Parallel()
 
 	is := is.New(t)
+	ctx := context.Background()
 
-	ctrl := gomock.NewController(t)
-
-	it := mock.NewMockIterator(ctrl)
-	it.EXPECT().Stop().Return(errors.New("some error"))
-
-	s := Source{
-		iterator: it,
+	s := &Source{
+		ch: make(chan opencdc.Record),
+		wg: &sync.WaitGroup{},
 	}
 
-	err := s.Teardown(context.Background())
-	is.True(err != nil)
-	is.Equal(err.Error(), "stop iterator: some error")
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		time.Sleep(100 * time.Millisecond)
+	}()
+
+	err := s.Teardown(ctx)
+	is.NoErr(err)
+	is.True(s.ch == nil)
 }

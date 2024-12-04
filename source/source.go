@@ -16,14 +16,16 @@ package source
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/conduitio-labs/conduit-connector-redshift/source/config"
-	"github.com/conduitio-labs/conduit-connector-redshift/source/iterator"
 	commonsConfig "github.com/conduitio/conduit-commons/config"
 	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	_ "github.com/jackc/pgx/v5/stdlib" // sql driver
+	"github.com/jmoiron/sqlx"
 )
 
 // driverName is a database driver name.
@@ -31,19 +33,15 @@ const driverName = "pgx"
 
 //go:generate mockgen -package mock -source source.go -destination ./mock/source.go
 
-// Iterator interface.
-type Iterator interface {
-	HasNext(context.Context) (bool, error)
-	Next(context.Context) (opencdc.Record, error)
-	Stop() error
-}
-
 // Source is an Amazon Redshift source plugin.
 type Source struct {
 	sdk.UnimplementedSource
 
+	db       *sqlx.DB
 	config   config.Config
-	iterator Iterator
+	position *Position
+	ch       chan opencdc.Record
+	wg       *sync.WaitGroup
 }
 
 // NewSource initialises a new source.
@@ -80,14 +78,51 @@ func (s *Source) Configure(ctx context.Context, cfgRaw commonsConfig.Config) err
 func (s *Source) Open(ctx context.Context, position opencdc.Position) error {
 	sdk.Logger(ctx).Info().Msg("Opening an Amazon Redshift Source...")
 
-	pos, err := iterator.ParseSDKPosition(position)
+	var err error
+	s.position, err = ParseSDKPosition(position)
 	if err != nil {
-		return fmt.Errorf("parse position: %w", err)
+		return err
 	}
 
-	s.iterator, err = iterator.New(ctx, driverName, pos, s.config)
+	// Open database connection
+	s.db, err = sqlx.Open(driverName, s.config.DSN)
 	if err != nil {
-		return fmt.Errorf("new iterator: %w", err)
+		return fmt.Errorf("failed opening db connection: %w", err)
+	}
+
+	// Check the connection
+	pingCtx, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+	err = s.db.PingContext(pingCtx)
+	if err != nil {
+		return fmt.Errorf("ping db with timeout: %w", err)
+	}
+
+	s.ch = make(chan opencdc.Record, s.config.BatchSize)
+	s.wg = &sync.WaitGroup{}
+
+	for table, tableConfig := range s.config.Tables {
+		s.wg.Add(1)
+
+		tablePosition, _ := s.position.get(table)
+		// A new iterator for each table
+		err := NewIterator(ctx, IteratorConfig{
+			db:             s.db,
+			position:       tablePosition,
+			sourcePosition: s.position,
+			table:          table,
+			orderingColumn: tableConfig.OrderingColumn,
+			keyColumns:     tableConfig.KeyColumns,
+			batchSize:      s.config.BatchSize,
+			pollingPeriod:  s.config.PollingPeriod,
+			snapshot:       s.config.Snapshot,
+			dsn:            s.config.DSN,
+			wg:             s.wg,
+			ch:             s.ch,
+		})
+		if err != nil {
+			return fmt.Errorf("creating iterator for table %s: %w", table, err)
+		}
 	}
 
 	return nil
@@ -97,21 +132,21 @@ func (s *Source) Open(ctx context.Context, position opencdc.Position) error {
 func (s *Source) Read(ctx context.Context) (opencdc.Record, error) {
 	sdk.Logger(ctx).Debug().Msg("Reading a record from Amazon Redshift Source...")
 
-	hasNext, err := s.iterator.HasNext(ctx)
-	if err != nil {
-		return opencdc.Record{}, fmt.Errorf("has next: %w", err)
+	if s == nil || s.ch == nil {
+		return opencdc.Record{}, errors.New("source not opened for reading")
 	}
 
-	if !hasNext {
+	select {
+	case <-ctx.Done():
+		return opencdc.Record{}, ctx.Err()
+	case record, ok := <-s.ch:
+		if !ok {
+			return opencdc.Record{}, fmt.Errorf("error reading data, records channel closed unexpectedly")
+		}
+		return record, nil //nolint:nlreturn // compact code style
+	default:
 		return opencdc.Record{}, sdk.ErrBackoffRetry
 	}
-
-	record, err := s.iterator.Next(ctx)
-	if err != nil {
-		return opencdc.Record{}, fmt.Errorf("next: %w", err)
-	}
-
-	return record, nil
 }
 
 // Ack logs the debug event with the position.
@@ -127,9 +162,22 @@ func (s *Source) Ack(ctx context.Context, position opencdc.Position) error {
 func (s *Source) Teardown(ctx context.Context) error {
 	sdk.Logger(ctx).Info().Msg("Tearing down the Amazon Redshift Source")
 
-	if s.iterator != nil {
-		if err := s.iterator.Stop(); err != nil {
-			return fmt.Errorf("stop iterator: %w", err)
+	if s.wg != nil {
+		// wait for goroutines to finish
+		s.wg.Wait()
+	}
+
+	if s.ch != nil {
+		// close the read channel for write
+		close(s.ch)
+		// reset read channel to nil, to avoid reading buffered records
+		s.ch = nil
+	}
+
+	if s.db != nil {
+		err := s.db.Close()
+		if err != nil {
+			return fmt.Errorf("close db: %w", err)
 		}
 	}
 

@@ -12,6 +12,7 @@ const (
 	ConfigDsn                  = "dsn"
 	ConfigKeyColumns           = "keyColumns"
 	ConfigOrderingColumn       = "orderingColumn"
+	ConfigPollingPeriod        = "pollingPeriod"
 	ConfigSnapshot             = "snapshot"
 	ConfigTable                = "table"
 	ConfigTablesKeyColumns     = "tables.*.keyColumns"
@@ -47,6 +48,12 @@ func (Config) Parameters() map[string]config.Parameter {
 			Default:     "",
 			Description: "Deprecated: use `tables.*.orderingColumn` instead",
 			Type:        config.ParameterTypeString,
+			Validations: []config.Validation{},
+		},
+		ConfigPollingPeriod: {
+			Default:     "5s",
+			Description: "This period is used by iterator to poll for new data at regular intervals.",
+			Type:        config.ParameterTypeDuration,
 			Validations: []config.Validation{},
 		},
 		ConfigSnapshot: {

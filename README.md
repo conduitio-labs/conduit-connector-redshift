@@ -50,10 +50,11 @@ pagination, limiting by `batchSize` and ordering by `orderingColumn`.
 | name             | description                                                                                                                                                                | required | example                                               | default value |
 |------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|-------------------------------------------------------|---------------|
 | `dsn`            | [DSN](https://en.wikipedia.org/wiki/Data_source_name) to connect to Redshift.                                                                                              | **true** | `postgres://username:password@endpoint:5439/database` |               |
-| `tables.*.orderingColumn`                  | Column used to order the rows. <br /> Keep in mind that the data will be sorted by this column, so the column must contain unique, consistent values suitable for sorting.    | true     |               |                  |
+| `tables.*.orderingColumn`                  | Column used to order the rows. <br /> Keep in mind that the data will be sorted by this column, so the column must contain unique, consistent values suitable for sorting.    | true     |               |               |
 | `tables.*.keyColumns`                  | Comma-separated list of column names to build the sdk.Record.Key. See more: [Key handling](#key-handling).   | false     |               |               |
 | `snapshot`       | Whether the connector will take a snapshot of the entire table before starting cdc mode.                                                                                   | false    | `false`                                               | "true"        |
 | `batchSize`      | Size of rows batch. Min is 1 and max is 100000.                                                                                                                            | false    | `100`                                                 | "1000"        |
+| `pollingPeriod`      | The duration for polling Redshift for fetching new records.                                                                                                                            | false    | `3s`                                                 | "5s"        |
 | ~~`table`~~          | Name of the table from which the connector reads from. **Deprecated: use `tables` instead.**                                                                                                                     | **false** | `table_name`                                          |               |
 | ~~`orderingColumn`~~ | Column used to order the rows. <br /> Keep in mind that the data will be sorted by this column, so the column must contain unique, consistent values suitable for sorting. **Deprecated: use `tables.*.orderingColumn` instead.** | **false** | `id`                                                  |               |
 | ~~`keyColumns`~~     | Comma-separated list of column names to build the `sdk.Record.Key`. **Deprecated: use `tables.*.keyColumns` instead.**                                                               | false    | `id,name`                                             |               |
@@ -76,12 +77,13 @@ pipelines:
         settings:
           dsn: "sample_dsn"
           # table "users"
+          # column "foo" will be used to order the rows, so it must contain unique, consistent values suitable for sorting
           tables.users.orderingColumn: "foo"
+          # columns "foo" and "bar" will be used to build the record key.
           tables.users.keyColumns: "foo,bar"
           # table "orders"
           tables.orders.orderingColumn: "id"
 ```
-
 
 ### Key handling
 
