@@ -29,7 +29,6 @@ linters-settings:
     forbid:
       - '^print.*'
       - 'fmt\.Print.*'
-    exclude_godoc_examples: false
 
 linters:
   # please, do not use `enable-all`: it's deprecated and will be removed soon.
