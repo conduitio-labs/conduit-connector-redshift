@@ -17,6 +17,7 @@ package columntypes
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -177,14 +178,25 @@ func ConvertStructuredData(
 
 		switch columnTypes[key] {
 		case timeType:
-			t, err := parseTime(value.(string))
+			s, ok := value.(string)
+			if !ok {
+				return nil, errors.New("error coercing value of column of time type to string")
+			}
+
+			t, err := parseTime(s)
 			if err != nil {
 				return nil, fmt.Errorf("parse time: %w", err)
 			}
 
 			result[key] = t.Format(TimeTypeLayout)
 		case timeTzType:
-			t, err := parseTime(value.(string))
+			s, ok := value.(string)
+
+			if !ok {
+				return nil, errors.New("error coercing value of column of time with tz to string")
+			}
+
+			t, err := parseTime(s)
 			if err != nil {
 				return nil, fmt.Errorf("parse time: %w", err)
 			}
