@@ -177,14 +177,22 @@ func ConvertStructuredData(
 
 		switch columnTypes[key] {
 		case timeType:
-			t, err := parseTime(value.(string))
+			strValue, ok := value.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected value for key %s to be a string, got %T", key, strValue)
+			}
+			t, err := parseTime(strValue)
 			if err != nil {
 				return nil, fmt.Errorf("parse time: %w", err)
 			}
 
 			result[key] = t.Format(TimeTypeLayout)
 		case timeTzType:
-			t, err := parseTime(value.(string))
+			strValue, ok := value.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected value for key %s to be a string, got %T", key, strValue)
+			}
+			t, err := parseTime(strValue)
 			if err != nil {
 				return nil, fmt.Errorf("parse time: %w", err)
 			}
